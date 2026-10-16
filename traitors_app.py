@@ -634,4 +634,123 @@ elif nav == "👑 Host Control (Neilio)":
                     tally[target] = tally.get(target, 0) + 1
                     whatsapp_lines.append(f"• *{voter}* accused *{target}*: _\"{vdata['reason']}\"_")
                 
-                sorted_tally = sorted(tally.
+                sorted_tally = sorted(tally.items(), key=lambda x: x[1], reverse=True)
+                whatsapp_lines.append("\n📜 *BALLOT TALLY:*")
+                for cand, count in sorted_tally:
+                    whatsapp_lines.append(f"• *{cand}*: {count} vote(s)")
+                
+                top_candidate = sorted_tally[0][0]
+                if state["current_day"] >= 10:
+                    whatsapp_lines.append(f"\n🔴 With the heaviest burden of votes, *{top_candidate}* is banished by High Host Neilio. In the Endgame, true identities remain locked away...")
+                else:
+                    whatsapp_lines.append(f"\n🔴 With the heaviest burden of votes, *{top_candidate}* is banished by High Host Neilio. Step forward into the light and reveal your true identity...")
+
+                st.code("\n".join(whatsapp_lines), language="markdown")
+
+        with col_fp:
+            st.subheader(f"2B. 🔥 Fire Pit & Finale Scripts")
+            fp_votes = state["fire_pit_votes"].get(fp_key, {})
+            if fp_votes:
+                red_count = sum(1 for v in fp_votes.values() if "RED" in v["choice"] or "BANISH" in v["choice"])
+                fp_lines = [f"🔥 *THE FIRE PIT OF TRUTH ({fp_key.upper()})* — *High Host: Neilio* 🔥\n"]
+                for voter, vdata in fp_votes.items():
+                    fp_lines.append(f"• *{voter}* cast *{vdata['choice']}*: _\"{vdata['reason']}\"_")
+                
+                if red_count > 0:
+                    fp_lines.append(f"\n🔴 *THE FLAMES BURN CRIMSON RED!* ({red_count} vote(s) to Banish Again).")
+                    fp_lines.append("The end is not yet written! High Host Neilio demands an immediate return to the Round Table.")
+                else:
+                    fp_lines.append("\n🟢 *THE FLAMES BURN UNANIMOUSLY GOLDEN GREEN!*")
+                    fp_lines.append("The reckoning has arrived. High Host Neilio has shattered the seals on the 4PM Grand Reveal screen!")
+                st.code("\n".join(fp_lines), language="markdown")
+
+            surviving_traitors = [n for n in alive_players if "Traitor" in state["players"][n]["role"]]
+            best_detective, scapegoat, stealth_traitor = compute_superlatives(state)
+            finale_lines = ["🏆 *THE GRAND FINALE REVEAL* — *High Host: Neilio* 🏆\n"]
+            finale_lines.append("The Fire Pit has spoken under Neilio's vigilant eye. Behold the unmasked survivors:")
+            for n in alive_players:
+                r = state["players"][n]["role"]
+                finale_lines.append(f"• *{n}*: {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
+            if surviving_traitors:
+                finale_lines.append(f"\n😈 *THE TRAITORS TRIUMPH!* *{', '.join(surviving_traitors)}* deceived the Castle and seized the entire *{state['prize_pot']} pt* Prize Pot!")
+            else:
+                finale_lines.append(f"\n🕯️ *THE FAITHFULS PREVAIL!* All Traitors were purged, and *{', '.join(alive_players)}* share the *{state['prize_pot']} pt* Prize Pot!")
+            finale_lines.append(f"\n🏅 *CASTLE HONOURS:*\n• 🕵️ Chief Detective: *{best_detective[0]}* ({best_detective[1]} Traitor targets)\n• 🐐 Ultimate Scapegoat: *{scapegoat[0]}* ({scapegoat[1]} votes endured)\n• 🎭 Master of the Shadows: *{stealth_traitor[0]}* ({stealth_traitor[1]} votes against)")
+            st.caption("👇 Copy this final WhatsApp scroll:")
+            st.code("\n".join(finale_lines), language="markdown")
+
+        st.divider()
+
+        st.subheader("3. Manage Players, Roles, Shields & Finale Banishments")
+        st.caption("Tip: If fewer than 37 register, mark unused slots as 'Banished' on Day 0 so they stay hidden in the shadows.")
+        
+        roster_rows = []
+        for name, d in state["players"].items():
+            roster_rows.append({
+                "Player Name": name,
+                "PIN": d["pin"],
+                "Role": d["role"],
+                "Status": d["status"],
+                "Eliminated On": d["eliminated_day"],
+                "Secret Shield": d["shield"],
+                "Public Shield": d.get("public_shield", False),
+                "Hide Identity (Finale)": d.get("hide_role", False)
+            })
+        
+        edited_df = st.data_editor(
+            pd.DataFrame(roster_rows),
+            column_config={
+                "Role": st.column_config.SelectboxColumn("Role", options=["Faithful", "Traitor", "Recruited Traitor"]),
+                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Banished", "Murdered"]),
+            },
+            use_container_width=True,
+            hide_index=True
+        )
+
+        if st.button("💾 Save Castle Roster"):
+            updated_players = {}
+            for _, row in edited_df.iterrows():
+                updated_players[row["Player Name"]] = {
+                    "pin": str(row["PIN"]),
+                    "role": row["Role"],
+                    "status": row["Status"],
+                    "eliminated_day": row["Eliminated On"],
+                    "shield": bool(row["Secret Shield"]),
+                    "public_shield": bool(row["Public Shield"]),
+                    "hide_role": bool(row["Hide Identity (Finale)"]),
+                    "photo": state["players"][row["Player Name"]].get("photo", "")
+                }
+            state["players"] = updated_players
+            save_state(state)
+            st.success("Castle roster updated successfully!")
+            st.rerun()
+
+        st.divider()
+
+        st.subheader("4. ☁️ Castle Vault Backup & Restore")
+        b_col1, b_col2, b_col3 = st.columns(3)
+        
+        with b_col1:
+            json_bytes = json.dumps(state, indent=4).encode("utf-8")
+            st.download_button(
+                label=f"⬇️ Download Vault Backup (Day {state['current_day']})",
+                data=json_bytes,
+                file_name=f"castle_state_day_{state['current_day']}.json",
+                mime="application/json"
+            )
+            
+        with b_col2:
+            uploaded_file = st.file_uploader("⬆️ Restore Vault from JSON Backup", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                if st.button("🔄 Confirm Vault Restoration"):
+                    restored_state = json.load(uploaded_file)
+                    save_state(restored_state)
+                    st.success("✅ Vault restored from the shadows!")
+                    st.rerun()
+
+        with b_col3:
+            if st.button("⚠️ Reset Castle to Day 1 Defaults"):
+                reset_state = get_default_state()
+                save_state(reset_state)
+                st.warning("The Castle has been wiped and reset to Day 1.")
+                st.rerun()
