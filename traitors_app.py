@@ -6,7 +6,7 @@ import base64
 from datetime import datetime
 
 # ==========================================
-# PAGE CONFIG & GOTHIC CASTLE STYLING
+# PAGE CONFIG & PARCHMENT CASTLE STYLING
 # ==========================================
 st.set_page_config(
     page_title="The Traitors: The Castle",
@@ -17,107 +17,129 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* Global App Background - Warm Parchment & Dark Readable Text */
     .stApp {
-        background-color: #111015;
-        color: #ffffff !important;
+        background-color: #f6f1e7 !important;
+        color: #2c2a29 !important;
     }
+    
+    /* Ensure all general markdown and text is dark and readable */
     .stMarkdown, p, span, label, div {
-        color: #f0ede6;
+        color: #2c2a29 !important;
     }
+    
+    /* Sidebar Styling - Aged Scroll */
     [data-testid="stSidebar"] {
-        background-color: #16151c;
-        border-right: 2px solid #3a3324;
+        background-color: #ebdccb !important;
+        border-right: 2px solid #c5a059;
     }
-    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] span {
-        color: #ffffff !important;
+    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
+        color: #2c2a29 !important;
     }
+
+    /* Gothic Typography & Headers - Rich Burgundy */
     h1, h2, h3 {
         font-family: 'Georgia', serif;
-        color: #f3e5ab !important;
+        color: #5c1d1d !important;
         letter-spacing: 1px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
     }
+
+    /* Player Cards - Crisp White Parchment Plaques */
     .player-card {
         border-radius: 6px;
         padding: 16px;
         margin-bottom: 14px;
         text-align: center;
         border: 2px solid #c5a059;
-        background: linear-gradient(145deg, #1f1d26 0%, #151319 100%);
-        color: #ffffff !important;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.05);
+        background: #ffffff;
+        color: #2c2a29 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
     .player-card div {
-        color: #ffffff !important;
+        color: #2c2a29 !important;
     }
     .player-dead {
-        border: 2px solid #423d33;
-        background: linear-gradient(145deg, #121115 0%, #0a090c 100%);
-        color: #b3aca1 !important;
+        border: 2px solid #b8b0a2;
+        background: #e6e2db;
+        color: #7a756b !important;
         opacity: 0.75;
     }
     .player-dead div {
-        color: #b3aca1 !important;
+        color: #7a756b !important;
     }
+    
+    /* Grand Finale Banners */
     .finale-banner-traitor {
         border-radius: 8px;
         padding: 30px;
         text-align: center;
-        background: linear-gradient(135deg, #380808 0%, #140303 100%);
-        border: 3px solid #8b0000;
+        background: #5c1d1d;
+        border: 3px solid #380808;
         color: #ffffff;
         margin-bottom: 24px;
+    }
+    .finale-banner-traitor h1, .finale-banner-traitor p {
+        color: #ffffff !important;
     }
     .finale-banner-faithful {
         border-radius: 8px;
         padding: 30px;
         text-align: center;
-        background: linear-gradient(135deg, #0b2b18 0%, #041008 100%);
+        background: #1b4d3e;
         border: 3px solid #c5a059;
         color: #ffffff;
         margin-bottom: 24px;
     }
+    .finale-banner-faithful h1, .finale-banner-faithful p {
+        color: #ffffff !important;
+    }
+    
+    /* Award Plaques */
     .award-card {
         border-radius: 6px;
         padding: 20px;
-        background: linear-gradient(145deg, #1a1820 0%, #121015 100%);
+        background: #ffffff;
         border: 2px solid #c5a059;
         text-align: center;
-        color: #ffffff !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        color: #2c2a29 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
     .award-card div {
-        color: #ffffff !important;
+        color: #2c2a29 !important;
     }
+
+    /* Role Highlights */
     .role-traitor {
-        color: #ff6b6b !important;
+        color: #b30000 !important;
         font-weight: bold;
         letter-spacing: 0.5px;
     }
     .role-faithful {
-        color: #5bc0be !important;
+        color: #006666 !important;
         font-weight: bold;
         letter-spacing: 0.5px;
     }
     .role-hidden {
-        color: #f39c12 !important;
+        color: #b36b00 !important;
         font-weight: bold;
     }
+
+    /* Streamlit Form & Input Styling Overrides */
     .stTextInput input, .stSelectbox select {
-        background-color: #1c1a24 !important;
-        color: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #2c2a29 !important;
         border: 1px solid #c5a059 !important;
     }
     .stButton button {
         background: linear-gradient(180deg, #c5a059 0%, #9e7b34 100%) !important;
-        color: #111015 !important;
+        color: #ffffff !important;
         font-weight: bold;
-        border: 1px solid #e6cb8a !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        border: 1px solid #7d6126 !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
     .stButton button:hover {
         background: linear-gradient(180deg, #d4af37 0%, #b38f42 100%) !important;
-        color: #000000 !important;
+        color: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -149,7 +171,7 @@ def get_default_state():
             "shield": False,
             "public_shield": False,
             "hide_role": False,
-            "photo": ""  # Added base64 photo storage
+            "photo": ""
         }
     return {
         "current_day": 1,
@@ -281,8 +303,8 @@ if nav == "🏰 Castle Hall (Public)":
             card_html = f"""
             <div class="player-card">
                 {avatar_display}
-                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; color: #ffffff;">{name}{shield_badge}</div>
-                <div style="color: #5bc0be; font-size: 12px;">🟢 In the Castle</div>
+                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; color: #2c2a29;">{name}{shield_badge}</div>
+                <div style="color: #006666; font-size: 12px;">🟢 In the Castle</div>
                 <div class="{role_class}" style="font-size: 11px; margin-top: 2px;">Identity: {revealed_role}</div>
             </div>
             """
@@ -292,8 +314,8 @@ if nav == "🏰 Castle Hall (Public)":
             card_html = f"""
             <div class="player-card player-dead">
                 <div style="font-size: 24px;">{icon}</div>
-                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; text-decoration: line-through; color: #d1cbd5;">{name}</div>
-                <div style="font-size: 12px; color: #b3aca1;">{status} ({pdata['eliminated_day']})</div>
+                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; text-decoration: line-through; color: #7a756b;">{name}</div>
+                <div style="font-size: 12px; color: #7a756b;">{status} ({pdata['eliminated_day']})</div>
                 <div class="{role_class}" style="font-size: 11px; margin-top: 2px;">{revealed_role}</div>
             </div>
             """
@@ -523,7 +545,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             f_cols[idx].markdown(f"""
             <div class="player-card">
                 <div style="font-size: 34px;">{'😈' if is_t else '😇'}</div>
-                <div style="font-weight: bold; font-size: 18px; margin-top: 6px; color: #ffffff;">{name}</div>
+                <div style="font-weight: bold; font-size: 18px; margin-top: 6px; color: #2c2a29;">{name}</div>
                 <div class="{role_cls}" style="font-size: 16px; margin-top: 6px;">{badge}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -537,9 +559,9 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             fate = "🏆 SURVIVED TO THE END" if t_data["status"] == "Alive" else f"🔴 Banished ({t_data['eliminated_day']})"
             t_cols[idx].markdown(f"""
             <div class="award-card">
-                <div style="font-size: 24px; color: #ffffff;">🗡️ <b>{t_name}</b></div>
-                <div style="color: #ff6b6b; font-size: 14px; margin-top: 4px;">{t_data['role']}</div>
-                <div style="color: #d1cbd5; font-size: 13px; margin-top: 6px;">{fate}</div>
+                <div style="font-size: 24px; color: #2c2a29;">🗡️ <b>{t_name}</b></div>
+                <div style="color: #b30000; font-size: 14px; margin-top: 4px;">{t_data['role']}</div>
+                <div style="color: #7a756b; font-size: 13px; margin-top: 6px;">{fate}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -552,27 +574,27 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
         a_col1.markdown(f"""
         <div class="award-card">
             <div style="font-size: 28px;">🕵️‍♂️</div>
-            <div style="font-weight: bold; color: #c5a059;">Chief Castle Detective</div>
-            <div style="font-size: 20px; margin: 6px 0; color: #ffffff;"><b>{best_detective[0]}</b></div>
-            <div style="font-size: 13px; color: #d1cbd5;">Cast <b>{best_detective[1]}</b> ballot(s) directly against Traitors!</div>
+            <div style="font-weight: bold; color: #7a5914;">Chief Castle Detective</div>
+            <div style="font-size: 20px; margin: 6px 0; color: #2c2a29;"><b>{best_detective[0]}</b></div>
+            <div style="font-size: 13px; color: #7a756b;">Cast <b>{best_detective[1]}</b> ballot(s) directly against Traitors!</div>
         </div>
         """, unsafe_allow_html=True)
 
         a_col2.markdown(f"""
         <div class="award-card">
             <div style="font-size: 28px;">🐐</div>
-            <div style="font-weight: bold; color: #c5a059;">The Ultimate Scapegoat</div>
-            <div style="font-size: 20px; margin: 6px 0; color: #ffffff;"><b>{scapegoat[0]}</b></div>
-            <div style="font-size: 13px; color: #d1cbd5;">Endured <b>{scapegoat[1]}</b> Round Table votes across the game!</div>
+            <div style="font-weight: bold; color: #7a5914;">The Ultimate Scapegoat</div>
+            <div style="font-size: 20px; margin: 6px 0; color: #2c2a29;"><b>{scapegoat[0]}</b></div>
+            <div style="font-size: 13px; color: #7a756b;">Endured <b>{scapegoat[1]}</b> Round Table votes across the game!</div>
         </div>
         """, unsafe_allow_html=True)
 
         a_col3.markdown(f"""
         <div class="award-card">
             <div style="font-size: 28px;">🎭</div>
-            <div style="font-weight: bold; color: #c5a059;">Master of the Shadows</div>
-            <div style="font-size: 20px; margin: 6px 0; color: #ffffff;"><b>{stealth_traitor[0]}</b></div>
-            <div style="font-size: 13px; color: #d1cbd5;">Traitor with only <b>{stealth_traitor[1]}</b> vote(s) against them!</div>
+            <div style="font-weight: bold; color: #7a5914;">Master of the Shadows</div>
+            <div style="font-size: 20px; margin: 6px 0; color: #2c2a29;"><b>{stealth_traitor[0]}</b></div>
+            <div style="font-size: 13px; color: #7a756b;">Traitor with only <b>{stealth_traitor[1]}</b> vote(s) against them!</div>
         </div>
         """, unsafe_allow_html=True)
 
