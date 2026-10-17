@@ -18,13 +18,18 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* Global App Background - Warm Parchment & Dark Readable Text */
     .stApp {
         background-color: #f6f1e7 !important;
         color: #2c2a29 !important;
     }
+    
+    /* Ensure all general markdown and text is dark and readable */
     .stMarkdown, p, span, label, div {
         color: #2c2a29 !important;
     }
+    
+    /* Sidebar Styling - Aged Scroll */
     [data-testid="stSidebar"] {
         background-color: #ebdccb !important;
         border-right: 2px solid #c5a059;
@@ -32,11 +37,15 @@ st.markdown("""
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
         color: #2c2a29 !important;
     }
+
+    /* Gothic Typography & Headers - Rich Burgundy */
     h1, h2, h3 {
         font-family: 'Georgia', serif;
         color: #5c1d1d !important;
         letter-spacing: 1px;
     }
+
+    /* Player Cards - Crisp White Parchment Plaques */
     .player-card {
         border-radius: 6px;
         padding: 16px;
@@ -59,6 +68,8 @@ st.markdown("""
     .player-dead div {
         color: #7a756b !important;
     }
+    
+    /* Grand Finale Banners */
     .finale-banner-traitor {
         border-radius: 8px;
         padding: 30px;
@@ -83,6 +94,8 @@ st.markdown("""
     .finale-banner-faithful h1, .finale-banner-faithful p {
         color: #ffffff !important;
     }
+    
+    /* Award Plaques */
     .award-card {
         border-radius: 6px;
         padding: 20px;
@@ -95,6 +108,8 @@ st.markdown("""
     .award-card div {
         color: #2c2a29 !important;
     }
+
+    /* Role Highlights */
     .role-traitor {
         color: #b30000 !important;
         font-weight: bold;
@@ -109,6 +124,8 @@ st.markdown("""
         color: #b36b00 !important;
         font-weight: bold;
     }
+
+    /* Streamlit Form & Input Styling Overrides */
     .stTextInput input, .stSelectbox select {
         background-color: #ffffff !important;
         color: #2c2a29 !important;
@@ -147,10 +164,10 @@ def get_default_state():
     default_players = {}
     for i in range(1, 38):  # Configured for up to 37 Players!
         name = f"Player {i:02d}"
-        random_pin = str(random.randint(1000, 9999))
+        random_pin = str(random.randint(1000, 9999))  # Random secure 4-digit PIN generator
         default_players[name] = {
             "pin": random_pin,
-            "role": "Traitor" if i in [3, 11, 18, 25, 32] else "Faithful",
+            "role": "Faithful",  # Everyone starts as Faithful by default! Neilio assigns Traitors later.
             "status": "Alive",
             "eliminated_day": "",
             "shield": False,
@@ -185,6 +202,7 @@ def load_state():
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
         p.setdefault("photo", "")
+        p.setdefault("role", "Faithful")
     return state
 
 def save_state(state):
@@ -630,7 +648,7 @@ elif nav == "👑 Host Control (Neilio)":
             state["headline"] = new_headline
             state["mission_text"] = new_mission
             save_state(state)
-            st.success("Castle state updated!")
+            st.success("Successful state update!")
             st.rerun()
 
         st.divider()
@@ -704,7 +722,30 @@ elif nav == "👑 Host Control (Neilio)":
         st.divider()
 
         st.subheader("3. Manage Players, Roles, Shields & Finale Banishments")
-        st.caption("Tip: If fewer than 37 register, mark unused slots as 'Banished' on Day 0 so they stay hidden in the shadows.")
+        st.caption("Tip: Use the quick Traitor Crown selector below to instantly assign your secret Traitors, or edit the table directly.")
+
+        # --- QUICK TRAITOR CROWN SELECTOR ---
+        all_player_names = list(state["players"].keys())
+        current_traitors = [name for name, d in state["players"].items() if "Traitor" in d["role"]]
+        
+        selected_traitors = st.multiselect(
+            "👑 Quick Crown Traitors (Select who will be a Traitor):",
+            options=all_player_names,
+            default=current_traitors
+        )
+        
+        if st.button("👑 Crown Selected Traitors"):
+            for name in all_player_names:
+                if name in selected_traitors:
+                    state["players"][name]["role"] = "Traitor"
+                else:
+                    state["players"][name]["role"] = "Faithful"
+            save_state(state)
+            st.success(f"👑 Traitors successfully crowned: {', '.join(selected_traitors) if selected_traitors else 'None'}")
+            st.rerun()
+
+        st.markdown("---")
+        st.caption("Detailed Roster Editor:")
         
         roster_rows = []
         for name, d in state["players"].items():
