@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import os
 import base64
+import random
 from datetime import datetime
 
 # ==========================================
@@ -163,8 +164,9 @@ def get_default_state():
     default_players = {}
     for i in range(1, 38):  # Configured for up to 37 Players!
         name = f"Player {i:02d}"
+        random_pin = str(random.randint(1000, 9999))  # Random secure 4-digit PIN generator
         default_players[name] = {
-            "pin": f"{1000 + i}",  # Default PINs: 1001 to 1037
+            "pin": random_pin,
             "role": "Traitor" if i in [3, 11, 18, 25, 32] else "Faithful", # 5 Traitors
             "status": "Alive",
             "eliminated_day": "",
