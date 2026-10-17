@@ -18,18 +18,13 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Global App Background - Warm Parchment & Dark Readable Text */
     .stApp {
         background-color: #f6f1e7 !important;
         color: #2c2a29 !important;
     }
-    
-    /* Ensure all general markdown and text is dark and readable */
     .stMarkdown, p, span, label, div {
         color: #2c2a29 !important;
     }
-    
-    /* Sidebar Styling - Aged Scroll */
     [data-testid="stSidebar"] {
         background-color: #ebdccb !important;
         border-right: 2px solid #c5a059;
@@ -37,15 +32,11 @@ st.markdown("""
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
         color: #2c2a29 !important;
     }
-
-    /* Gothic Typography & Headers - Rich Burgundy */
     h1, h2, h3 {
         font-family: 'Georgia', serif;
         color: #5c1d1d !important;
         letter-spacing: 1px;
     }
-
-    /* Player Cards - Crisp White Parchment Plaques */
     .player-card {
         border-radius: 6px;
         padding: 16px;
@@ -68,8 +59,6 @@ st.markdown("""
     .player-dead div {
         color: #7a756b !important;
     }
-    
-    /* Grand Finale Banners */
     .finale-banner-traitor {
         border-radius: 8px;
         padding: 30px;
@@ -94,8 +83,6 @@ st.markdown("""
     .finale-banner-faithful h1, .finale-banner-faithful p {
         color: #ffffff !important;
     }
-    
-    /* Award Plaques */
     .award-card {
         border-radius: 6px;
         padding: 20px;
@@ -108,8 +95,6 @@ st.markdown("""
     .award-card div {
         color: #2c2a29 !important;
     }
-
-    /* Role Highlights */
     .role-traitor {
         color: #b30000 !important;
         font-weight: bold;
@@ -124,8 +109,6 @@ st.markdown("""
         color: #b36b00 !important;
         font-weight: bold;
     }
-
-    /* Streamlit Form & Input Styling Overrides */
     .stTextInput input, .stSelectbox select {
         background-color: #ffffff !important;
         color: #2c2a29 !important;
@@ -152,8 +135,8 @@ DATA_FILE = "castle_state.json"
 HOST_PIN = "1411"  # Host Neilio's PIN
 
 PHASES = [
-    "Breakfast",
-    "Mission & Discussion",
+    "Breakfast & Launch",
+    "24-Hour Asynchronous Window",
     "Round Table Voting",
     "The Fire Pit (Endgame)",
     "Overnight (Turret)",
@@ -164,10 +147,10 @@ def get_default_state():
     default_players = {}
     for i in range(1, 38):  # Configured for up to 37 Players!
         name = f"Player {i:02d}"
-        random_pin = str(random.randint(1000, 9999))  # Random secure 4-digit PIN generator
+        random_pin = str(random.randint(1000, 9999))
         default_players[name] = {
             "pin": random_pin,
-            "role": "Traitor" if i in [3, 11, 18, 25, 32] else "Faithful", # 5 Traitors
+            "role": "Traitor" if i in [3, 11, 18, 25, 32] else "Faithful",
             "status": "Alive",
             "eliminated_day": "",
             "shield": False,
@@ -178,11 +161,11 @@ def get_default_state():
     return {
         "current_day": 1,
         "fire_pit_round": 1,
-        "phase": "Mission & Discussion",
+        "phase": "24-Hour Asynchronous Window",
         "prize_pot": 100,
         "traitor_pot": 0,
-        "headline": "Welcome to the Castle, subjects of Neilio! Check your secret role in the Player Portal and complete Mission 1.",
-        "mission_text": "🏆 **MISSION 1: TWO TRUTHS & AN ALIBI**\nPost two true facts and one lie in the WhatsApp chat before 13:30!",
+        "headline": "Welcome to Neilio's Castle! The 24-hour asynchronous window is open. Check your role and vote whenever you have a break.",
+        "mission_text": "🏆 **MISSION 1: TWO TRUTHS & AN ALIBI**\nPost two true facts and one lie in the WhatsApp chat over the next 24 hours!",
         "players": default_players,
         "votes": {},
         "fire_pit_votes": {},
@@ -282,7 +265,7 @@ if nav == "🏰 Castle Hall (Public)":
     elif state["phase"] == "The Fire Pit (Endgame)":
         st.error(f"🔥 **THE FIRE PIT IS LIT (Round {state['fire_pit_round']})!** Head to the Player Portal to cast your final pouch.")
 
-    with st.expander("📜 Today's Daily Mission / Castle Decrees", expanded=True):
+    with st.expander("📜 Today's Daily Mission / Asynchronous Rules", expanded=True):
         st.markdown(state["mission_text"])
 
     st.subheader("🖼️ Portraits on the Great Hall Wall")
@@ -328,7 +311,7 @@ if nav == "🏰 Castle Hall (Public)":
 # ==========================================
 elif nav == "🗳️ Player Portal (Vote & Role)":
     st.title("🗝️ The Secret Chamber Portal")
-    st.caption("Select your name and enter your personal 4-digit PIN to consult the shadows, inspect for Shields, or cast your ballot.")
+    st.caption("Select your name and enter your personal 4-digit PIN to consult the shadows, inspect for Shields, or cast your ballot within the 24-hour window.")
 
     col1, col2 = st.columns(2)
     selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()))
@@ -395,11 +378,9 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
                                 save_state(state)
                                 st.success(f"✅ Your **{fp_choice}** pouch is locked in for {fp_key}!")
             else:
-                st.subheader(f"🗳️ Round Table Ballot ({day_key})")
+                st.subheader(f"🗳️ Asynchronous Ballot ({day_key})")
                 if p_info["status"] != "Alive":
                     st.warning("👻 Ghosts cannot cast votes at the Round Table!")
-                elif state["phase"] != "Round Table Voting":
-                    st.info(f"The Round Table ballot box is currently sealed (Current Phase: **{state['phase']}**).")
                 else:
                     alive_targets = [
                         name for name, d in state["players"].items() 
@@ -414,7 +395,7 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
                             index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0
                         )
                         reason = st.text_input(
-                            "1-Sentence Accusation (read aloud at the Round Table):",
+                            "1-Sentence Accusation (read aloud at Breakfast):",
                             value=existing_vote.get("reason", "")
                         )
                         submitted = st.form_submit_button("Seal My Fate & Lock In Vote 🕯️")
@@ -462,7 +443,7 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
 # ==========================================
 elif nav == "📊 The Voting Matrix":
     st.title("📊 The Castle Archives: Voting Matrix")
-    st.caption("Every Round Table ballot cast since day one. Votes against exposed Traitors are marked with 🎯.")
+    st.caption("Every asynchronous ballot cast since day one. Votes against exposed Traitors are marked with 🎯.")
 
     known_traitors = {
         name for name, d in state["players"].items()
@@ -615,15 +596,15 @@ elif nav == "👑 Host Control (Neilio)":
         st.subheader("⚔️ Master Game Launch Control")
         col_launch1, col_launch2 = st.columns([2, 1])
         with col_launch1:
-            st.markdown("Ready to unleash the Traitors? Click this button to officially open Day 1 and broadcast the decree to the entire Castle.")
+            st.markdown("Ready to unleash the Traitors? Click this button to officially open Day 1 and broadcast the asynchronous decree to the entire Castle.")
         with col_launch2:
             if st.button("🔥 Let the Treachery Begin!", type="primary"):
                 state["current_day"] = 1
-                state["phase"] = "Mission & Discussion"
+                state["phase"] = "24-Hour Asynchronous Window"
                 state["headline"] = "The Castle gates are officially open... Let the treachery begin!"
                 save_state(state)
                 st.balloons()
-                st.success("🔥 The game is LIVE! The treachery has begun.")
+                st.success("🔥 The game is LIVE! The asynchronous window is open.")
                 st.rerun()
         st.markdown("---")
 
@@ -658,7 +639,7 @@ elif nav == "👑 Host Control (Neilio)":
         alive_players = [n for n, d in state["players"].items() if d["status"] == "Alive"]
 
         with col_rt:
-            st.subheader(f"2A. Round Table Tally ({day_key})")
+            st.subheader(f"2A. Asynchronous Ballot Tally ({day_key})")
             day_votes = state["votes"].get(day_key, {})
             voted_players = list(day_votes.keys())
             missing_voters = [n for n in alive_players if n not in voted_players]
@@ -669,7 +650,7 @@ elif nav == "👑 Host Control (Neilio)":
             
             if day_votes:
                 tally = {}
-                whatsapp_lines = [f"🕯️ *THE ROUND TABLE BALLOTS ARE SEALED ({day_key.upper()})* — *High Host: Neilio* 🕯️\n"]
+                whatsapp_lines = [f"🕯️ *ASYNCHRONOUS BALLOTS TALLIED ({day_key.upper()})* — *High Host: Neilio* 🕯️\n"]
                 for voter, vdata in day_votes.items():
                     target = vdata["target"]
                     tally[target] = tally.get(target, 0) + 1
@@ -678,7 +659,7 @@ elif nav == "👑 Host Control (Neilio)":
                 sorted_tally = sorted(tally.items(), key=lambda x: x[1], reverse=True)
                 whatsapp_lines.append("\n📜 *BALLOT TALLY:*")
                 for cand, count in sorted_tally:
-                    whatsapp_lines.append(f"• *{cand}*: {count} vote(s)")
+                    whatsapp_lines.append(f"• *{cand}* : {count} vote(s)")
                 
                 top_candidate = sorted_tally[0][0]
                 if state["current_day"] >= 10:
