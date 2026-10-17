@@ -610,6 +610,23 @@ elif nav == "👑 Host Control (Neilio)":
     if admin_pin == HOST_PIN:
         st.success("Sanctuary unlocked. Welcome back, High Host Neilio.")
         
+        # --- THE MASTER TREACHERY SWITCH ---
+        st.markdown("---")
+        st.subheader("⚔️ Master Game Launch Control")
+        col_launch1, col_launch2 = st.columns([2, 1])
+        with col_launch1:
+            st.markdown("Ready to unleash the Traitors? Click this button to officially open Day 1 and broadcast the decree to the entire Castle.")
+        with col_launch2:
+            if st.button("🔥 Let the Treachery Begin!", type="primary"):
+                state["current_day"] = 1
+                state["phase"] = "Mission & Discussion"
+                state["headline"] = "The Castle gates are officially open... Let the treachery begin!"
+                save_state(state)
+                st.balloons()
+                st.success("🔥 The game is LIVE! The treachery has begun.")
+                st.rerun()
+        st.markdown("---")
+
         st.subheader("1. Game Day, Phase & Castle Decrees")
         c1, c2, c3, c4 = st.columns(4)
         new_day = c1.number_input("Current Day (1-12)", min_value=1, max_value=12, value=state["current_day"])
