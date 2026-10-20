@@ -672,6 +672,20 @@ elif nav == "👑 Host Control (Neilio)":
             if missing_voters:
                 st.warning(f"⏳ **Still awaiting whispers from:** {', '.join(missing_voters)}")
             
+            # --- EMERGENCY VOTE RESET TOOL ---
+            with st.expander("🛠️ Emergency Vote Correction"):
+                voted_names = list(day_votes.keys())
+                if voted_names:
+                    player_to_reset = st.selectbox("Select player to clear vote for:", voted_names, key="reset_vote_select")
+                    if st.button("🗑️ Clear This Player's Vote"):
+                        if player_to_reset in state["votes"].get(day_key, {}):
+                            del state["votes"][day_key][player_to_reset]
+                            save_state(state)
+                            st.success(f"Successfully cleared vote for {player_to_reset}. They can now vote again.")
+                            st.rerun()
+                else:
+                    st.write("No votes cast yet today.")
+
             if day_votes:
                 tally = {}
                 whatsapp_lines = [f"🕯️ *ASYNCHRONOUS BALLOTS TALLIED ({day_key.upper()})* — *High Host: Neilio* 🕯️\n"]
@@ -826,4 +840,3 @@ elif nav == "👑 Host Control (Neilio)":
                 save_state(reset_state)
                 st.warning("The Castle has been wiped and reset to Day 1.")
                 st.rerun()
-        
