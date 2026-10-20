@@ -395,8 +395,8 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
                                 }
                                 save_state(state)
                                 st.success(f"✅ Your **{fp_choice}** pouch is locked in for {fp_key}!")
-            else:
-                st.subheader(f"🗳️ Asynchronous Ballot ({day_key})")
+            elif state["phase"] == "Round Table Voting":
+                st.subheader(f"🗳️ Round Table Ballot ({day_key})")
                 if p_info["status"] != "Alive":
                     st.warning("👻 Ghosts cannot cast votes at the Round Table!")
                 else:
@@ -406,6 +406,9 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
                     ]
                     existing_vote = state["votes"].get(day_key, {}).get(selected_player, {})
                     
+                    if existing_vote:
+                        st.info("ℹ️ You have already cast a vote today. Submitting again will update your ballot.")
+
                     with st.form("vote_form"):
                         target = st.selectbox(
                             "Who are you voting to BANISH from the Castle?", 
@@ -428,6 +431,9 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
                                 }
                                 save_state(state)
                                 st.success(f"✅ Your vote to banish **{target}** has been recorded in the shadows.")
+            else:
+                st.subheader("🗳️ Round Table Ballot")
+                st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open. Stand by in the Great Hall!")
 
             if "Traitor" in p_info["role"] and p_info["status"] == "Alive":
                 st.divider()
@@ -820,3 +826,4 @@ elif nav == "👑 Host Control (Neilio)":
                 save_state(reset_state)
                 st.warning("The Castle has been wiped and reset to Day 1.")
                 st.rerun()
+        
