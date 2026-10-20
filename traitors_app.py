@@ -770,10 +770,14 @@ elif nav == "👑 Host Control (Neilio)":
             hide_index=True
         )
 
-        if st.button("💾 Save Castle Roster"):
+       if st.button("💾 Save Castle Roster"):
             updated_players = {}
             for _, row in edited_df.iterrows():
-                updated_players[row["Player Name"]] = {
+                player_name = row["Player Name"]
+                # Safely retrieve existing player data if they already existed
+                existing_pdata = state["players"].get(player_name, {})
+                
+                updated_players[player_name] = {
                     "pin": str(row["PIN"]),
                     "role": row["Role"],
                     "status": row["Status"],
@@ -781,7 +785,7 @@ elif nav == "👑 Host Control (Neilio)":
                     "shield": bool(row["Secret Shield"]),
                     "public_shield": bool(row["Public Shield"]),
                     "hide_role": bool(row["Hide Identity (Finale)"]),
-                    "photo": state["players"][row["Player Name"]].get("photo", "")
+                    "photo": existing_pdata.get("photo", "")
                 }
             state["players"] = updated_players
             save_state(state)
