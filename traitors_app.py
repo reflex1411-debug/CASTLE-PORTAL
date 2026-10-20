@@ -770,32 +770,6 @@ elif nav == "👑 Host Control (Neilio)":
             hide_index=True
         )
 
-st.markdown("---")
-        st.caption("Detailed Roster Editor:")
-        
-        roster_rows = []
-        for name, d in state["players"].items():
-            roster_rows.append({
-                "Player Name": name,
-                "PIN": d["pin"],
-                "Role": d["role"],
-                "Status": d["status"],
-                "Eliminated On": d["eliminated_day"],
-                "Secret Shield": d["shield"],
-                "Public Shield": d.get("public_shield", False),
-                "Hide Identity (Finale)": d.get("hide_role", False)
-            })
-        
-        edited_df = st.data_editor(
-            pd.DataFrame(roster_rows),
-            column_config={
-                "Role": st.column_config.SelectboxColumn("Role", options=["Faithful", "Traitor", "Recruited Traitor"]),
-                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Banished", "Murdered"]),
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-
         if st.button("💾 Save Castle Roster"):
             updated_players = {}
             for _, row in edited_df.iterrows():
