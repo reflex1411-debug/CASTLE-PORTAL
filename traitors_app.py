@@ -162,7 +162,7 @@ PHASES = [
 
 def get_default_state():
     default_players = {}
-    for i in range(1, 38):  # Configured for up to 37 Players!
+    for i in range(1, 21):  # Configured for exactly 20 Players!
         name = f"Player {i:02d}"
         random_pin = str(random.randint(1000, 9999))  # Random secure 4-digit PIN generator
         default_players[name] = {
