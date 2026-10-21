@@ -269,11 +269,11 @@ def load_state():
             "points": 0
         }
     for p in state.get("players", {}).values():
+        p["role"] = str(p.get("role", "Faithful"))
+        p["status"] = str(p.get("status", "Alive"))
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
         p.setdefault("photo", "")
-        p.setdefault("role", "Faithful")
-        p.setdefault("status", "Alive")
         p.setdefault("points", 0)
     return state
 
@@ -293,8 +293,8 @@ fp_key = f"Round {state['fire_pit_round']}"
 is_finale_unlocked = (state["phase"] == "🏆 The Grand Reveal (Finale)")
 
 def get_public_identity(pdata, force_reveal=False):
-    status = pdata.get("status", "Alive")
-    role = pdata.get("role", "Faithful")
+    status = str(pdata.get("status", "Alive"))
+    role = str(pdata.get("role", "Faithful"))
     if not force_reveal:
         if status == "Alive":
             return "❓ Unknown", ""
@@ -307,8 +307,8 @@ def get_public_identity(pdata, force_reveal=False):
     return "🕯️ Faithful", "role-faithful"
 
 def compute_superlatives(state):
-    all_traitors = {n for n, d in state["players"].items() if "Traitor" in d.get("role", "")}
-    detective_scores = {n: 0 for n, d in state["players"].items() if "Traitor" not in d.get("role", "")}
+    all_traitors = {n for n, d in state["players"].items() if "Traitor" in str(d.get("role", ""))}
+    detective_scores = {n: 0 for n, d in state["players"].items() if "Traitor" not in str(d.get("role", ""))}
     votes_against = {n: 0 for n in state["players"]}
 
     for d_votes in state["votes"].values():
@@ -355,8 +355,8 @@ def initialize_vault_boxes(day_k, total_boxes, config):
 
 def render_player_portal_view(selected_player):
     p_info = state["players"][selected_player]
-    role = p_info.get("role", "Faithful")
-    status = p_info.get("status", "Alive")
+    role = str(p_info.get("role", "Faithful"))
+    status = str(p_info.get("status", "Alive"))
     st.success(f"Viewing portal as: **{selected_player}**")
     
     r_col1, r_col2, r_col3 = st.columns(3)
@@ -406,7 +406,7 @@ def render_player_portal_view(selected_player):
         else:
             alive_targets = [
                 name for name, d in state["players"].items() 
-                if d.get("status", "Alive") == "Alive" and name != selected_player
+                if str(d.get("status", "Alive")) == "Alive" and name != selected_player
             ]
             existing_vote = state["votes"].get(day_key, {}).get(selected_player, {})
             
@@ -442,7 +442,7 @@ def render_player_portal_view(selected_player):
     # --- VAULT OF SAFETY DEPOSIT BOXES CHALLENGE ---
     st.divider()
     st.subheader("🏦 The Wall of Safety Deposit Boxes")
-    alive_count = sum(1 for d in state["players"].values() if d.get("status", "Alive") == "Alive")
+    alive_count = sum(1 for d in state["players"].values() if str(d.get("status", "Alive")) == "Alive")
     total_boxes = alive_count * 3
     
     vault_contents = state["vault_contents"].setdefault(day_key, {})
@@ -530,13 +530,13 @@ def render_player_portal_view(selected_player):
         st.subheader("🗡️ The Traitors' Turret (Secret Access)")
         fellow_traitors = [
             n for n, d in state["players"].items() 
-            if "Traitor" in d.get("role", "") and d.get("status", "Alive") == "Alive"
+            if "Traitor" in str(d.get("role", "")) and str(d.get("status", "Alive")) == "Alive"
         ]
         st.markdown(f"**Surviving Traitors in the Turret:** {', '.join(fellow_traitors)} | **Traitor Pot:** `{state['traitor_pot']} pts`")
         
         faithful_targets = [
             n for n, d in state["players"].items()
-            if "Traitor" not in d.get("role", "") and d.get("status", "Alive") == "Alive" and not d.get("public_shield")
+            if "Traitor" not in str(d.get("role", "")) and str(d.get("status", "Alive")) == "Alive" and not d.get("public_shield")
         ]
         
         turret_noms = state["turret_nominations"].get(day_key, {})
@@ -601,7 +601,7 @@ st.sidebar.markdown(f"**High Host:** Neilio 👑")
 st.sidebar.markdown(f"**Current Day:** Day {state['current_day']} of 10")
 st.sidebar.markdown(f"**Current Phase:** `{state['phase']}`")
 
-alive_count = sum(1 for p in state["players"].values() if p.get("status", "Alive") == "Alive")
+alive_count = sum(1 for p in state["players"].values() if str(p.get("status", "Alive")) == "Alive")
 st.sidebar.metric("🟢 Survivors in Castle", f"{alive_count} / {len(state['players'])}")
 st.sidebar.metric("🏆 Faithful Prize Pot", f"{state['prize_pot']} pts")
 
@@ -636,7 +636,7 @@ if nav == "🏰 Castle Hall (Public)":
 
     for idx, (name, pdata) in enumerate(players_list):
         col = cols[idx % 5]
-        status = pdata.get("status", "Alive")
+        status = str(pdata.get("status", "Alive"))
         photo_url = pdata.get("photo", "")
         
         if photo_url:
@@ -682,7 +682,7 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
 
     if entered_pin:
         p_info = state["players"][selected_player]
-        if entered_pin != p_info.get("pin", ""):
+        if entered_pin != str(p_info.get("pin", "")):
             st.error("❌ Incorrect PIN. Speak in whispers with Host Neilio if you forgot your credentials.")
         else:
             st.success(f"Welcome back to the shadows, **{selected_player}**.")
@@ -711,13 +711,13 @@ elif nav == "📊 The Voting Matrix":
 
     known_traitors = {
         name for name, d in state["players"].items()
-        if "Traitor" in d.get("role", "") and (is_finale_unlocked or (d.get("status", "") == "Banished" and not d.get("hide_role", False)))
+        if "Traitor" in str(d.get("role", "")) and (is_finale_unlocked or (str(d.get("status", "")) == "Banished" and not d.get("hide_role", False)))
     }
 
     all_days = sorted(state["votes"].keys(), key=lambda x: int(x.split(" ")[1]))
     rows = []
     for name, pdata in state["players"].items():
-        status = pdata.get("status", "Alive")
+        status = str(pdata.get("status", "Alive"))
         identity, _ = get_public_identity(pdata, force_reveal=is_finale_unlocked)
 
         row = {
@@ -757,9 +757,9 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             "once the final pouches have been thrown."
         )
     else:
-        survivors = {n: d for n, d in state["players"].items() if d.get("status", "Alive") == "Alive"}
-        surviving_traitors = [n for n, d in survivors.items() if "Traitor" in d.get("role", "")]
-        surviving_faithfuls = [n for n, d in survivors.items() if "Traitor" not in d.get("role", "")]
+        survivors = {n: d for n, d in state["players"].items() if str(d.get("status", "Alive")) == "Alive"}
+        surviving_traitors = [n for n, d in survivors.items() if "Traitor" in str(d.get("role", ""))]
+        surviving_faithfuls = [n for n, d in survivors.items() if "Traitor" not in str(d.get("role", ""))]
 
         if surviving_traitors:
             st.snow()
@@ -787,7 +787,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
         st.subheader("🔥 The Fire Pit Finalists — Unmasked")
         f_cols = st.columns(max(len(survivors), 1))
         for idx, (name, d) in enumerate(survivors.items()):
-            is_t = "Traitor" in d.get("role", "")
+            is_t = "Traitor" in str(d.get("role", ""))
             badge = "🗡️ TRAITOR" if is_t else "🕯️ FAITHFUL"
             role_cls = "role-traitor" if is_t else "role-faithful"
             f_cols[idx].markdown(f"""
@@ -801,10 +801,10 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
         st.divider()
 
         st.subheader("🗡️ Complete Roll Call of the Traitors")
-        all_traitors = [(n, d) for n, d in state["players"].items() if "Traitor" in d.get("role", "")]
+        all_traitors = [(n, d) for n, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
         t_cols = st.columns(max(len(all_traitors), 1))
         for idx, (t_name, t_data) in enumerate(all_traitors):
-            fate = "🏆 SURVIVED TO THE END" if t_data.get("status", "") == "Alive" else f"🔴 Banished ({t_data.get('eliminated_day', '')})"
+            fate = "🏆 SURVIVED TO THE END" if str(t_data.get("status", "")) == "Alive" else f"🔴 Banished ({t_data.get('eliminated_day', '')})"
             t_cols[idx].markdown(f"""
             <div class="award-card">
                 <div style="font-size: 24px; color: #2c2a29;">🗡️ <b>{t_name}</b></div>
@@ -976,7 +976,7 @@ elif nav == "👑 Host Control (Neilio)":
         st.divider()
 
         col_rt, col_fp = st.columns(2)
-        alive_players = [n for n, d in state["players"].items() if d.get("status", "Alive") == "Alive"]
+        alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) == "Alive"]
 
         with col_rt:
             st.subheader(f"2A. Asynchronous Ballot Tally ({day_key})")
@@ -1040,12 +1040,12 @@ elif nav == "👑 Host Control (Neilio)":
                     fp_lines.append("The reckoning has arrived. High Host Neilio has shattered the seals on the 4PM Grand Reveal screen!")
                 st.code("\n".join(fp_lines), language="markdown")
 
-            surviving_traitors = [n for n in alive_players if "Traitor" in state["players"][n].get("role", "")]
+            surviving_traitors = [n for n in alive_players if "Traitor" in str(state["players"][n].get("role", ""))]
             best_detective, scapegoat, stealth_traitor = compute_superlatives(state)
             finale_lines = ["🏆 *THE GRAND FINALE REVEAL* — *High Host: Neilio* 🏆\n"]
             finale_lines.append("The Fire Pit has spoken under Neilio's vigilant eye. Behold the unmasked survivors:")
             for n in alive_players:
-                r = state["players"][n].get("role", "")
+                r = str(state["players"][n].get("role", ""))
                 finale_lines.append(f"• *{n}*: {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
             if surviving_traitors:
                 finale_lines.append(f"\n😈 *THE TRAITORS TRIUMPH!* *{', '.join(surviving_traitors)}* deceived the Castle and seized the entire *{state['prize_pot']} pt* Prize Pot!")
@@ -1062,7 +1062,7 @@ elif nav == "👑 Host Control (Neilio)":
 
         # --- QUICK TRAITOR CROWN SELECTOR ---
         all_player_names = list(state["players"].keys())
-        current_traitors = [name for name, d in state["players"].items() if "Traitor" in d.get("role", "")]
+        current_traitors = [name for name, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
         
         selected_traitors = st.multiselect(
             "👑 Quick Crown Traitors (Select who will be a Traitor):",
@@ -1087,14 +1087,14 @@ elif nav == "👑 Host Control (Neilio)":
         for name, d in state["players"].items():
             roster_rows.append({
                 "Player Name": name,
-                "PIN": d.get("pin", "1000"),
-                "Role": d.get("role", "Faithful"),
-                "Status": d.get("status", "Alive"),
-                "Eliminated On": d.get("eliminated_day", ""),
-                "Secret Shield": d.get("shield", False),
-                "Public Shield": d.get("public_shield", False),
-                "Hide Identity (Finale)": d.get("hide_role", False),
-                "Points": d.get("points", 0)
+                "PIN": str(d.get("pin", "1000")),
+                "Role": str(d.get("role", "Faithful")),
+                "Status": str(d.get("status", "Alive")),
+                "Eliminated On": str(d.get("eliminated_day", "")),
+                "Secret Shield": bool(d.get("shield", False)),
+                "Public Shield": bool(d.get("public_shield", False)),
+                "Hide Identity (Finale)": bool(d.get("hide_role", False)),
+                "Points": int(d.get("points", 0))
             })
         
         edited_df = st.data_editor(
@@ -1112,14 +1112,14 @@ elif nav == "👑 Host Control (Neilio)":
             for _, row in edited_df.iterrows():
                 player_name = row["Player Name"]
                 if not player_name or not str(player_name).strip():
-                    continue  # Skip empty deleted rows
+                    continue
                 existing_pdata = state["players"].get(player_name, {})
                 
                 updated_players[player_name] = {
                     "pin": str(row["PIN"]),
-                    "role": row["Role"],
-                    "status": row["Status"],
-                    "eliminated_day": row["Eliminated On"],
+                    "role": str(row["Role"]),
+                    "status": str(row["Status"]),
+                    "eliminated_day": str(row["Eliminated On"]),
                     "shield": bool(row["Secret Shield"]),
                     "public_shield": bool(row["Public Shield"]),
                     "hide_role": bool(row["Hide Identity (Finale)"]),
