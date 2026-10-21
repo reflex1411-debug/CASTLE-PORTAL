@@ -190,17 +190,6 @@ def get_default_state():
             "photo": "",
             "points": 0
         }
-    default_players["Caste Owl"] = {
-        "pin": "1411",
-        "role": "Faithful",
-        "status": "Alive",
-        "eliminated_day": "",
-        "shield": False,
-        "public_shield": False,
-        "hide_role": False,
-        "photo": "",
-        "points": 0
-    }
 
     return {
         "current_day": 1,
@@ -256,18 +245,6 @@ def load_state():
         "prize_points_value": 25,
         "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
     })
-    if "Caste Owl" not in state.get("players", {}):
-        state.setdefault("players", {})["Caste Owl"] = {
-            "pin": "1411",
-            "role": "Faithful",
-            "status": "Alive",
-            "eliminated_day": "",
-            "shield": False,
-            "public_shield": False,
-            "hide_role": False,
-            "photo": "",
-            "points": 0
-        }
     for p in state.get("players", {}).values():
         p["role"] = str(p.get("role", "Faithful"))
         p["status"] = str(p.get("status", "Alive"))
