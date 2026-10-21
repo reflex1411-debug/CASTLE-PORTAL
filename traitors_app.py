@@ -249,6 +249,119 @@ def compute_superlatives(state):
     )
     return best_detective, scapegoat, stealth_traitor
 
+def render_player_portal_view(selected_player):
+    """Renders the complete player portal interface (Faithful/Traitor/Turret view) for any selected user."""
+    p_info = state["players"][selected_player]
+    st.success(f"Viewing portal as: **{selected_player}**")
+    
+    r_col1, r_col2, r_col3 = st.columns(3)
+    r_col1.metric("Secret Role", f"🗡️ {p_info['role']}" if "Traitor" in p_info["role"] else "🕯️ Faithful")
+    r_col2.metric("Current Status", p_info["status"])
+    r_col3.metric("Protected by Shield Tonight?", "🛡️ YES" if p_info["shield"] else "No")
+
+    st.divider()
+
+    if state["phase"] == "The Fire Pit (Endgame)":
+        st.subheader(f"🔥 The Fire Pit of Truth — {fp_key}")
+        if p_info["status"] != "Alive":
+            st.warning("👻 Only surviving finalists stand before the Fire Pit flames!")
+        else:
+            st.markdown(
+                "Throw **🟢 END GAME** if you believe only Faithfuls remain (or if you are a Traitor ready to steal the pot!). "
+                "If **even one player** throws **🔴 BANISH AGAIN**, the group must immediately face another Banishment vote."
+            )
+            existing_fp = state["fire_pit_votes"].get(fp_key, {}).get(selected_player, {})
+            
+            with st.form(f"fire_pit_form_{selected_player}"):
+                fp_choice = st.radio(
+                    "Choose your pouch to cast into the fire:",
+                    ["🟢 END GAME", "🔴 BANISH AGAIN"],
+                    index=0 if existing_fp.get("choice", "🟢 END GAME") == "🟢 END GAME" else 1
+                )
+                fp_reason = st.text_input(
+                    "1-Sentence Final Statement (read aloud as the flames shift):",
+                    value=existing_fp.get("reason", "")
+                )
+                fp_submit = st.form_submit_button("Throw Pouch into the Flames 🔥")
+                if fp_submit:
+                    if not fp_reason.strip():
+                        st.error("Please add a 1-sentence reason for your pouch choice!")
+                    else:
+                        state["fire_pit_votes"].setdefault(fp_key, {})[selected_player] = {
+                            "choice": fp_choice,
+                            "reason": fp_reason.strip(),
+                            "timestamp": datetime.now().strftime("%H:%M")
+                        }
+                        save_state(state)
+                        st.success(f"✅ Your **{fp_choice}** pouch is locked in for {fp_key}!")
+    elif state["phase"] == "Round Table Voting":
+        st.subheader(f"🗳️ Round Table Ballot ({day_key})")
+        if p_info["status"] != "Alive":
+            st.warning("👻 Ghosts cannot cast votes at the Round Table!")
+        else:
+            alive_targets = [
+                name for name, d in state["players"].items() 
+                if d["status"] == "Alive" and name != selected_player
+            ]
+            existing_vote = state["votes"].get(day_key, {}).get(selected_player, {})
+            
+            if existing_vote:
+                st.info("ℹ️ You have already cast a vote today. Submitting again will update your ballot.")
+
+            with st.form(f"vote_form_{selected_player}"):
+                target = st.selectbox(
+                    "Who are you voting to BANISH from the Castle?", 
+                    alive_targets,
+                    index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0
+                )
+                reason = st.text_input(
+                    "1-Sentence Accusation (read aloud at Breakfast):",
+                    value=existing_vote.get("reason", "")
+                )
+                submitted = st.form_submit_button("Seal My Fate & Lock In Vote 🕯️")
+                if submitted:
+                    if not reason.strip():
+                        st.error("Please provide a short 1-sentence reason for your vote!")
+                    else:
+                        state["votes"].setdefault(day_key, {})[selected_player] = {
+                            "target": target,
+                            "reason": reason.strip(),
+                            "timestamp": datetime.now().strftime("%H:%M")
+                        }
+                        save_state(state)
+                        st.success(f"✅ Your vote to banish **{target}** has been recorded in the shadows.")
+    else:
+        st.subheader("🗳️ Round Table Ballot")
+        st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open. Stand by in the Great Hall!")
+
+    # Traitor Turret Access Section
+    if "Traitor" in p_info["role"] and p_info["status"] == "Alive":
+        st.divider()
+        st.subheader("🗡️ The Traitors' Turret (Secret Access)")
+        fellow_traitors = [
+            n for n, d in state["players"].items() 
+            if "Traitor" in d["role"] and d["status"] == "Alive"
+        ]
+        st.markdown(f"**Surviving Traitors in the Turret:** {', '.join(fellow_traitors)} | **Traitor Pot:** `{state['traitor_pot']} pts`")
+        
+        faithful_targets = [
+            n for n, d in state["players"].items()
+            if "Traitor" not in d["role"] and d["status"] == "Alive" and not d.get("public_shield")
+        ]
+        
+        current_turret = state["turret_targets"].get(day_key, {})
+        if current_turret:
+            st.write("**Current Turret Murder Nominations:**")
+            for t_name, victim in current_turret.items():
+                st.write(f"• 🗡️ **{t_name}** targets: **{victim}**")
+
+        if faithful_targets:
+            murder_choice = st.selectbox("Nominate Tonight's Murder Victim:", faithful_targets, key=f"turret_sel_{selected_player}")
+            if st.button("Lock In Murder Nomination 🩸", key=f"turret_btn_{selected_player}"):
+                state["turret_targets"].setdefault(day_key, {})[selected_player] = murder_choice
+                save_state(state)
+                st.rerun()
+
 # ==========================================
 # SIDEBAR NAVIGATION & METRICS
 # ==========================================
@@ -355,112 +468,7 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
                 if p_info.get("photo"):
                     st.image(p_info["photo"], width=100, caption="Current Portrait")
 
-            r_col1, r_col2, r_col3 = st.columns(3)
-            r_col1.metric("Your Secret Role", f"🗡️ {p_info['role']}" if "Traitor" in p_info["role"] else "🕯️ Faithful")
-            r_col2.metric("Current Status", p_info["status"])
-            r_col3.metric("Protected by Shield Tonight?", "🛡️ YES" if p_info["shield"] else "No")
-
-            st.divider()
-
-            if state["phase"] == "The Fire Pit (Endgame)":
-                st.subheader(f"🔥 The Fire Pit of Truth — {fp_key}")
-                if p_info["status"] != "Alive":
-                    st.warning("👻 Only surviving finalists stand before the Fire Pit flames!")
-                else:
-                    st.markdown(
-                        "Throw **🟢 END GAME** if you believe only Faithfuls remain (or if you are a Traitor ready to steal the pot!). "
-                        "If **even one player** throws **🔴 BANISH AGAIN**, the group must immediately face another Banishment vote."
-                    )
-                    existing_fp = state["fire_pit_votes"].get(fp_key, {}).get(selected_player, {})
-                    
-                    with st.form("fire_pit_form"):
-                        fp_choice = st.radio(
-                            "Choose your pouch to cast into the fire:",
-                            ["🟢 END GAME", "🔴 BANISH AGAIN"],
-                            index=0 if existing_fp.get("choice", "🟢 END GAME") == "🟢 END GAME" else 1
-                        )
-                        fp_reason = st.text_input(
-                            "1-Sentence Final Statement (read aloud as the flames shift):",
-                            value=existing_fp.get("reason", "")
-                        )
-                        fp_submit = st.form_submit_button("Throw Pouch into the Flames 🔥")
-                        if fp_submit:
-                            if not fp_reason.strip():
-                                st.error("Please add a 1-sentence reason for your pouch choice!")
-                            else:
-                                state["fire_pit_votes"].setdefault(fp_key, {})[selected_player] = {
-                                    "choice": fp_choice,
-                                    "reason": fp_reason.strip(),
-                                    "timestamp": datetime.now().strftime("%H:%M")
-                                }
-                                save_state(state)
-                                st.success(f"✅ Your **{fp_choice}** pouch is locked in for {fp_key}!")
-            elif state["phase"] == "Round Table Voting":
-                st.subheader(f"🗳️ Round Table Ballot ({day_key})")
-                if p_info["status"] != "Alive":
-                    st.warning("👻 Ghosts cannot cast votes at the Round Table!")
-                else:
-                    alive_targets = [
-                        name for name, d in state["players"].items() 
-                        if d["status"] == "Alive" and name != selected_player
-                    ]
-                    existing_vote = state["votes"].get(day_key, {}).get(selected_player, {})
-                    
-                    if existing_vote:
-                        st.info("ℹ️ You have already cast a vote today. Submitting again will update your ballot.")
-
-                    with st.form("vote_form"):
-                        target = st.selectbox(
-                            "Who are you voting to BANISH from the Castle?", 
-                            alive_targets,
-                            index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0
-                        )
-                        reason = st.text_input(
-                            "1-Sentence Accusation (read aloud at Breakfast):",
-                            value=existing_vote.get("reason", "")
-                        )
-                        submitted = st.form_submit_button("Seal My Fate & Lock In Vote 🕯️")
-                        if submitted:
-                            if not reason.strip():
-                                st.error("Please provide a short 1-sentence reason for your vote!")
-                            else:
-                                state["votes"].setdefault(day_key, {})[selected_player] = {
-                                    "target": target,
-                                    "reason": reason.strip(),
-                                    "timestamp": datetime.now().strftime("%H:%M")
-                                }
-                                save_state(state)
-                                st.success(f"✅ Your vote to banish **{target}** has been recorded in the shadows.")
-            else:
-                st.subheader("🗳️ Round Table Ballot")
-                st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open. Stand by in the Great Hall!")
-
-            if "Traitor" in p_info["role"] and p_info["status"] == "Alive":
-                st.divider()
-                st.subheader("🗡️ The Traitors' Turret (Secret Access)")
-                fellow_traitors = [
-                    n for n, d in state["players"].items() 
-                    if "Traitor" in d["role"] and d["status"] == "Alive"
-                ]
-                st.markdown(f"**Surviving Traitors in the Turret:** {', '.join(fellow_traitors)} | **Traitor Pot:** `{state['traitor_pot']} pts`")
-                
-                faithful_targets = [
-                    n for n, d in state["players"].items()
-                    if "Traitor" not in d["role"] and d["status"] == "Alive" and not d.get("public_shield")
-                ]
-                
-                current_turret = state["turret_targets"].get(day_key, {})
-                if current_turret:
-                    st.write("**Current Turret Murder Nominations:**")
-                    for t_name, victim in current_turret.items():
-                        st.write(f"• 🗡️ **{t_name}** targets: **{victim}**")
-
-                if faithful_targets:
-                    murder_choice = st.selectbox("Nominate Tonight's Murder Victim:", faithful_targets)
-                    if st.button("Lock In Murder Nomination 🩸"):
-                        state["turret_targets"].setdefault(day_key, {})[selected_player] = murder_choice
-                        save_state(state)
-                        st.rerun()
+            render_player_portal_view(selected_player)
 
 # ==========================================
 # TAB 3: VOTING MATRIX
@@ -615,8 +623,17 @@ elif nav == "👑 Host Control (Neilio)":
     if admin_pin == HOST_PIN:
         st.success("Sanctuary unlocked. Welcome back, High Host Neilio.")
         
-        # --- THE MASTER TREACHERY SWITCH ---
+        # --- HOST GOD-MODE VIEW (FAITHFUL, TRAITOR & TURRET ACCESS) ---
         st.markdown("---")
+        st.subheader("👁️ Host All-Seeing Eye: Faithful, Traitor & Turret Access")
+        st.caption("Select any player below to preview their exact portal view (Faithful or Traitor) and access the Turret with the exact same view and controls as the Traitors.")
+        
+        god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
+        with st.expander(f"🔮 Active Viewport Preview: {god_mode_player}", expanded=True):
+            render_player_portal_view(god_mode_player)
+        st.markdown("---")
+        
+        # --- THE MASTER TREACHERY SWITCH ---
         st.subheader("⚔️ Master Game Launch Control")
         col_launch1, col_launch2 = st.columns([2, 1])
         with col_launch1:
