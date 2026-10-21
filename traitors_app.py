@@ -1148,4 +1148,42 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.divider()
 
-        st.subheader("
+        st.subheader("4. ☁️ Castle Vault Backup & Restore")
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+        
+        with b_col1:
+            json_bytes = json.dumps(state, indent=4).encode("utf-8")
+            st.download_button(
+                label=f"⬇️ Download Backup",
+                data=json_bytes,
+                file_name=f"castle_state_day_{state['current_day']}.json",
+                mime="application/json"
+            )
+            
+        with b_col2:
+            if st.button("🔄 Restore Last Save"):
+                if os.path.exists(BACKUP_FILE):
+                    with open(BACKUP_FILE, "r") as f:
+                        backup_state = json.load(f)
+                    with open(DATA_FILE, "w") as f:
+                        json.dump(backup_state, f, indent=4)
+                    st.success("✅ Castle restored to last checkpoint!")
+                    st.rerun()
+                else:
+                    st.warning("No backup checkpoint found.")
+
+        with b_col3:
+            if st.button("⚠️ Day 1 Defaults"):
+                reset_state = get_default_state()
+                save_state(reset_state)
+                st.warning("Castle reset to Day 1 defaults.")
+                st.rerun()
+
+        with b_col4:
+            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                if st.button("🔄 Confirm Upload"):
+                    restored_state = json.load(uploaded_file)
+                    save_state(restored_state)
+                    st.success("✅ Vault restored from file!")
+                    st.rerun()
