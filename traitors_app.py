@@ -204,7 +204,13 @@ def get_default_state():
         "unanimous_murder": {},
         "vault_winners": {},
         "vault_attempts": {},
-        "vault_riddle_solved": {}
+        "vault_riddle_solved": {},
+        "vault_riddles": {
+            "Day 1": {
+                "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
+                "answer": "wish"
+            }
+        }
     }
 
 def load_state():
@@ -221,6 +227,12 @@ def load_state():
     state.setdefault("vault_winners", {})
     state.setdefault("vault_attempts", {})
     state.setdefault("vault_riddle_solved", {})
+    state.setdefault("vault_riddles", {
+        "Day 1": {
+            "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
+            "answer": "wish"
+        }
+    })
     for p in state.get("players", {}).values():
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
@@ -380,6 +392,12 @@ def render_player_portal_view(selected_player):
     has_solved_riddle = riddle_solved_dict.get(selected_player, False)
     has_attempted_today = attempts_dict.get(selected_player, False)
 
+    # Fetch daily riddle set by Host
+    daily_riddle_data = state["vault_riddles"].get(day_key, {
+        "question": "Solve the riddle to gain access to the Safety Deposit Boxes.",
+        "answer": "wish"
+    })
+
     if p_info["status"] != "Alive":
         st.warning("👻 Ghosts cannot tamper with the Safety Deposit Vault!")
     else:
@@ -392,17 +410,14 @@ def render_player_portal_view(selected_player):
         else:
             if not has_solved_riddle:
                 st.markdown("### 🧩 Step 1: Solve the Gatekeeper Riddle")
-                st.markdown(
-                    "> *\"I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. "
-                    "To touch the iron doors and test your fate, you must first name the symbol of my estate. "
-                    "What word am I, spoken when the dandelions blow?\"*"
-                )
+                st.markdown(f"> *\"{daily_riddle_data['question']}\"*")
                 with st.form(f"riddle_form_{selected_player}"):
                     riddle_answer = st.text_input("Enter the secret password / word:")
                     riddle_submit = st.form_submit_button("Submit Riddle Answer 🗝️")
                     if riddle_submit:
                         clean_ans = riddle_answer.strip().lower()
-                        if clean_ans in ["wish", "dandelion", "dandelions"]:
+                        correct_ans = daily_riddle_data["answer"].strip().lower()
+                        if clean_ans == correct_ans or clean_ans in [a.strip() for a in correct_ans.split(",")]:
                             state["vault_riddle_solved"].setdefault(day_key, {})[selected_player] = True
                             save_state(state)
                             st.success("🔓 Correct! The gatekeeper unlocks access to the Safety Deposit Boxes.")
@@ -809,6 +824,26 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.success("Successful state update!")
             st.rerun()
+
+        st.divider()
+
+        # --- HOST RIDDLE EDITOR FOR SAFETY DEPOSIT VAULT ---
+        st.subheader("5. 🧩 Daily Safety Deposit Vault & Riddle Settings")
+        st.caption("Set the gatekeeper riddle and correct password for each day's safety deposit box challenge.")
+        
+        riddle_day_select = st.selectbox("Select Day to Configure Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1)
+        existing_riddle = state["vault_riddles"].get(riddle_day_select, {"question": "", "answer": ""})
+        
+        with st.form("host_riddle_form"):
+            host_riddle_q = st.text_area("Gatekeeper Riddle Question (Markdown supported):", value=existing_riddle["question"])
+            host_riddle_a = st.text_input("Correct Answer / Password (comma separated for multiple):", value=existing_riddle["answer"])
+            save_riddle_btn = st.form_submit_button("💾 Save Riddle for " + riddle_day_select)
+            if save_riddle_btn:
+                state["vault_riddles"].setdefault(riddle_day_select, {})["question"] = host_riddle_q.strip()
+                state["vault_riddles"].setdefault(riddle_day_select, {})["answer"] = host_riddle_a.strip().lower()
+                save_state(state)
+                st.success(f"✅ Riddle successfully updated for {riddle_day_select}!")
+                st.rerun()
 
         st.divider()
 
