@@ -55,18 +55,31 @@ st.markdown("""
         background: #ffffff;
         color: #2c2a29 !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        position: relative;
     }
     .player-card div {
         color: #2c2a29 !important;
     }
-    .player-dead {
-        border: 2px solid #b8b0a2;
-        background: #e6e2db;
-        color: #7a756b !important;
-        opacity: 0.75;
+    
+    /* Murdered / Dead Player Card Overlays with Blood-Red Cross */
+    .player-card-dead {
+        position: relative;
+        border: 2px solid #5c1d1d;
+        background: #d4cfc5;
+        opacity: 0.85;
+        filter: grayscale(70%);
     }
-    .player-dead div {
-        color: #7a756b !important;
+    .blood-cross {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 58px;
+        color: #b30000;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+        pointer-events: none;
+        z-index: 5;
     }
     
     /* Grand Finale Banners */
@@ -149,6 +162,7 @@ st.markdown("""
 # DATA PERSISTENCE & HOST CONFIG
 # ==========================================
 DATA_FILE = "castle_state.json"
+BACKUP_FILE = "castle_state_backup.json"
 HOST_PIN = "1411"  # Host Neilio's PIN
 
 PHASES = [
@@ -187,7 +201,10 @@ def get_default_state():
         "votes": {},
         "fire_pit_votes": {},
         "turret_nominations": {},
-        "unanimous_murder": {}
+        "unanimous_murder": {},
+        "vault_winners": {},
+        "vault_attempts": {},
+        "vault_riddle_solved": {}
     }
 
 def load_state():
@@ -201,6 +218,9 @@ def load_state():
     state.setdefault("fire_pit_votes", {})
     state.setdefault("turret_nominations", {})
     state.setdefault("unanimous_murder", {})
+    state.setdefault("vault_winners", {})
+    state.setdefault("vault_attempts", {})
+    state.setdefault("vault_riddle_solved", {})
     for p in state.get("players", {}).values():
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
@@ -209,6 +229,12 @@ def load_state():
     return state
 
 def save_state(state):
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            current_data = f.read()
+        with open(BACKUP_FILE, "w") as f:
+            f.write(current_data)
+            
     with open(DATA_FILE, "w") as f:
         json.dump(state, f, indent=4)
 
@@ -253,7 +279,7 @@ def compute_superlatives(state):
     return best_detective, scapegoat, stealth_traitor
 
 def render_player_portal_view(selected_player):
-    """Renders the complete player portal interface (Faithful/Traitor/Turret view) for any selected user."""
+    """Renders the complete player portal interface (Faithful/Traitor/Turret/Vault view) for any selected user."""
     p_info = state["players"][selected_player]
     st.success(f"Viewing portal as: **{selected_player}**")
     
@@ -337,6 +363,71 @@ def render_player_portal_view(selected_player):
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open. Stand by in the Great Hall!")
 
+    # --- VAULT OF SAFETY DEPOSIT BOXES CHALLENGE ---
+    st.divider()
+    st.subheader("🏦 The Vault of Safety Deposit Boxes")
+    alive_count = sum(1 for d in state["players"].values() if d["status"] == "Alive")
+    total_boxes = alive_count * 3
+    
+    if day_key not in state["vault_winners"]:
+        state["vault_winners"][day_key] = random.randint(1, total_boxes)
+        save_state(state)
+    
+    winning_box = state["vault_winners"][day_key]
+    riddle_solved_dict = state["vault_riddle_solved"].setdefault(day_key, {})
+    attempts_dict = state["vault_attempts"].setdefault(day_key, {})
+    
+    has_solved_riddle = riddle_solved_dict.get(selected_player, False)
+    has_attempted_today = attempts_dict.get(selected_player, False)
+
+    if p_info["status"] != "Alive":
+        st.warning("👻 Ghosts cannot tamper with the Safety Deposit Vault!")
+    else:
+        st.markdown(f"**Total Deposit Boxes Active Today:** `{total_boxes}` (3x surviving players)")
+        
+        if p_info["shield"]:
+            st.success("🛡️ You already hold a Shield in your possession! The vault doors remain closed to you today.")
+        elif has_attempted_today:
+            st.info("ℹ️ You have already tested your luck at the Safety Deposit Vault today. Return tomorrow!")
+        else:
+            if not has_solved_riddle:
+                st.markdown("### 🧩 Step 1: Solve the Gatekeeper Riddle")
+                st.markdown(
+                    "> *\"I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. "
+                    "To touch the iron doors and test your fate, you must first name the symbol of my estate. "
+                    "What word am I, spoken when the dandelions blow?\"*"
+                )
+                with st.form(f"riddle_form_{selected_player}"):
+                    riddle_answer = st.text_input("Enter the secret password / word:")
+                    riddle_submit = st.form_submit_button("Submit Riddle Answer 🗝️")
+                    if riddle_submit:
+                        clean_ans = riddle_answer.strip().lower()
+                        if clean_ans in ["wish", "dandelion", "dandelions"]:
+                            state["vault_riddle_solved"].setdefault(day_key, {})[selected_player] = True
+                            save_state(state)
+                            st.success("🔓 Correct! The gatekeeper unlocks access to the Safety Deposit Boxes.")
+                            st.rerun()
+                        else:
+                            st.error("❌ Incorrect answer. The vault remains sealed. Consult the whispers in the Castle and try again.")
+            else:
+                st.success("🔓 Gatekeeper Riddle Solved! You have 1 Key to open one Safety Deposit Box.")
+                st.markdown("### 🏦 Step 2: Choose Your Box (1 to {})".format(total_boxes))
+                
+                with st.form(f"vault_box_form_{selected_player}"):
+                    chosen_box = st.number_input("Select Box Number:", min_value=1, max_value=total_boxes, value=1, step=1)
+                    box_submit = st.form_submit_button("Open Box 📦")
+                    if box_submit:
+                        state["vault_attempts"].setdefault(day_key, {})[selected_player] = True
+                        if chosen_box == winning_box:
+                            state["players"][selected_player]["shield"] = True
+                            save_state(state)
+                            st.balloons()
+                            st.success(f"🎉 INCREDIBLE! Box #{chosen_box} contained the **Shield**! You are protected tonight.")
+                        else:
+                            save_state(state)
+                            st.error(f"💀 Box #{chosen_box} swings open... but it is completely empty. Better luck next time, Faithful.")
+                        st.rerun()
+
     # --- TRAITOR TURRET ACCESS SECTION ---
     if "Traitor" in p_info["role"] and p_info["status"] == "Alive":
         st.divider()
@@ -352,7 +443,6 @@ def render_player_portal_view(selected_player):
             if "Traitor" not in d["role"] and d["status"] == "Alive" and not d.get("public_shield")
         ]
         
-        # Display all Traitors' 3-tier nominations
         turret_noms = state["turret_nominations"].get(day_key, {})
         if turret_noms:
             st.markdown("---")
@@ -360,9 +450,8 @@ def render_player_portal_view(selected_player):
             for t_name, choices in turret_noms.items():
                 st.write(f"• 🗡️ **{t_name}**'s 3 choices: **1st:** {choices.get('1st', '—')} | **2nd:** {choices.get('2nd', '—')} | **3rd:** {choices.get('3rd', '—')}")
 
-        # Individual 3-Tier Nomination Form
         existing_user_noms = turret_noms.get(selected_player, {})
-        with st.form(f"turret_noms_form_{selected_player}" ):
+        with st.form(f"turret_noms_form_{selected_player}"):
             st.markdown("### 🎯 Submit Your Top 3 Murder Preferences")
             st.caption("Select up to 3 possible Faithful victims in order of priority for tonight's discussion.")
             
@@ -474,10 +563,11 @@ if nav == "🏰 Castle Hall (Public)":
             icon = "💀" if status == "Murdered" else "🔴"
             revealed_role, role_class = get_public_identity(pdata, force_reveal=is_finale_unlocked)
             card_html = f"""
-            <div class="player-card player-dead">
-                <div style="font-size: 24px;">{icon}</div>
-                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; text-decoration: line-through; color: #7a756b;">{name}</div>
-                <div style="font-size: 12px; color: #7a756b;">{status} ({pdata['eliminated_day']})</div>
+            <div class="player-card player-card-dead">
+                <div class="blood-cross">❌</div>
+                {avatar_display}
+                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; text-decoration: line-through; color: #5c1d1d;">{name}</div>
+                <div style="font-size: 12px; color: #5c1d1d; font-weight: bold;">{status} ({pdata['eliminated_day']})</div>
                 <div class="{role_class}" style="font-size: 11px; margin-top: 2px;">{revealed_role}</div>
             </div>
             """
@@ -877,29 +967,41 @@ elif nav == "👑 Host Control (Neilio)":
         st.divider()
 
         st.subheader("4. ☁️ Castle Vault Backup & Restore")
-        b_col1, b_col2, b_col3 = st.columns(3)
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
         
         with b_col1:
             json_bytes = json.dumps(state, indent=4).encode("utf-8")
             st.download_button(
-                label=f"⬇️ Download Vault Backup (Day {state['current_day']})",
+                label=f"⬇️ Download Backup",
                 data=json_bytes,
                 file_name=f"castle_state_day_{state['current_day']}.json",
                 mime="application/json"
             )
             
         with b_col2:
-            uploaded_file = st.file_uploader("⬆️ Restore Vault from JSON Backup", type=["json"], label_visibility="collapsed")
-            if uploaded_file is not None:
-                if st.button("🔄 Confirm Vault Restoration"):
-                    restored_state = json.load(uploaded_file)
-                    save_state(restored_state)
-                    st.success("✅ Vault restored from the shadows!")
+            if st.button("🔄 Restore Last Save"):
+                if os.path.exists(BACKUP_FILE):
+                    with open(BACKUP_FILE, "r") as f:
+                        backup_state = json.load(f)
+                    with open(DATA_FILE, "w") as f:
+                        json.dump(backup_state, f, indent=4)
+                    st.success("✅ Castle restored to last checkpoint!")
                     st.rerun()
+                else:
+                    st.warning("No backup checkpoint found.")
 
         with b_col3:
-            if st.button("⚠️ Reset Castle to Day 1 Defaults"):
+            if st.button("⚠️ Day 1 Defaults"):
                 reset_state = get_default_state()
                 save_state(reset_state)
-                st.warning("The Castle has been wiped and reset to Day 1.")
+                st.warning("Castle reset to Day 1 defaults.")
                 st.rerun()
+
+        with b_col4:
+            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                if st.button("🔄 Confirm Upload"):
+                    restored_state = json.load(uploaded_file)
+                    save_state(restored_state)
+                    st.success("✅ Vault restored from file!")
+                    st.rerun()
