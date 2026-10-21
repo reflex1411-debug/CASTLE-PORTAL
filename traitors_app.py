@@ -178,7 +178,7 @@ def get_default_state():
     default_players = {}
     for i in range(1, 21):  # Configured for exactly 20 Players + Caste Owl!
         name = f"Player {i:02d}"
-        random_pin = str(random.randint(1000, 9999))  # Random secure 4-digit PIN generator
+        random_pin = str(random.randint(1000, 9999))
         default_players[name] = {
             "pin": random_pin,
             "role": "Faithful",
@@ -187,9 +187,9 @@ def get_default_state():
             "shield": False,
             "public_shield": False,
             "hide_role": False,
-            "photo": ""
+            "photo": "",
+            "points": 0
         }
-    # Add Caste Owl as a dedicated test player
     default_players["Caste Owl"] = {
         "pin": "1411",
         "role": "Faithful",
@@ -198,7 +198,8 @@ def get_default_state():
         "shield": False,
         "public_shield": False,
         "hide_role": False,
-        "photo": ""
+        "photo": "",
+        "points": 0
     }
 
     return {
@@ -214,14 +215,19 @@ def get_default_state():
         "fire_pit_votes": {},
         "turret_nominations": {},
         "unanimous_murder": {},
-        "vault_winners": {},
-        "vault_attempts": {},
+        "vault_contents": {},     # {day_key: {box_number: {"type": ..., "opened": False, "opened_by": ...}}}
+        "vault_attempts": {},     # {day_key: {player_name: count_int}}
         "vault_riddle_solved": {},
         "vault_riddles": {
             "Day 1": {
                 "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
                 "answer": "wish"
             }
+        },
+        "vault_config": {
+            "shields_count": 2,
+            "prize_points_value": 25,
+            "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
         }
     }
 
@@ -236,7 +242,7 @@ def load_state():
     state.setdefault("fire_pit_votes", {})
     state.setdefault("turret_nominations", {})
     state.setdefault("unanimous_murder", {})
-    state.setdefault("vault_winners", {})
+    state.setdefault("vault_contents", {})
     state.setdefault("vault_attempts", {})
     state.setdefault("vault_riddle_solved", {})
     state.setdefault("vault_riddles", {
@@ -245,7 +251,11 @@ def load_state():
             "answer": "wish"
         }
     })
-    # Ensure Caste Owl exists if loading an older state file without it
+    state.setdefault("vault_config", {
+        "shields_count": 2,
+        "prize_points_value": 25,
+        "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
+    })
     if "Caste Owl" not in state.get("players", {}):
         state.setdefault("players", {})["Caste Owl"] = {
             "pin": "1411",
@@ -255,13 +265,15 @@ def load_state():
             "shield": False,
             "public_shield": False,
             "hide_role": False,
-            "photo": ""
+            "photo": "",
+            "points": 0
         }
     for p in state.get("players", {}).values():
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
         p.setdefault("photo", "")
         p.setdefault("role", "Faithful")
+        p.setdefault("points", 0)
     return state
 
 def save_state(state):
@@ -314,6 +326,32 @@ def compute_superlatives(state):
     )
     return best_detective, scapegoat, stealth_traitor
 
+def initialize_vault_boxes(day_k, total_boxes, config):
+    """Randomly assigns Shields, Points, and Castle Relics to the safety deposit boxes for the day."""
+    boxes = {}
+    box_numbers = list(range(1, total_boxes + 1))
+    random.shuffle(box_numbers)
+    
+    shields_to_assign = min(config.get("shields_count", 2), total_boxes)
+    points_to_assign = max(1, total_boxes // 3)
+    
+    relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
+    if not relics_pool:
+        relics_pool = ["Rusted Iron Key", "Dusty Tome", "Empty Urn"]
+
+    for i in range(total_boxes):
+        b_num = str(box_numbers[i])
+        if i < shields_to_assign:
+            boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
+        elif i < shields_to_assign + points_to_assign:
+            pts = config.get("prize_points_value", 25)
+            boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Prize Points!", "opened": False, "opened_by": ""}
+        else:
+            relic = random.choice(relics_pool)
+            boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic}", "opened": False, "opened_by": ""}
+            
+    return boxes
+
 def render_player_portal_view(selected_player):
     """Renders the complete player portal interface (Faithful/Traitor/Turret/Vault view) for any selected user."""
     p_info = state["players"][selected_player]
@@ -322,7 +360,7 @@ def render_player_portal_view(selected_player):
     r_col1, r_col2, r_col3 = st.columns(3)
     r_col1.metric("Secret Role", f"🗡️ {p_info['role']}" if "Traitor" in p_info["role"] else "🕯️ Faithful")
     r_col2.metric("Current Status", p_info["status"])
-    r_col3.metric("Protected by Shield Tonight?", "🛡️ YES" if p_info["shield"] else "No")
+    r_col3.metric("Personal Points", f"{p_info.get('points', 0)} pts")
 
     st.divider()
 
@@ -401,20 +439,21 @@ def render_player_portal_view(selected_player):
 
     # --- VAULT OF SAFETY DEPOSIT BOXES CHALLENGE ---
     st.divider()
-    st.subheader("🏦 The Vault of Safety Deposit Boxes")
+    st.subheader("🏦 The Wall of Safety Deposit Boxes")
     alive_count = sum(1 for d in state["players"].values() if d["status"] == "Alive")
     total_boxes = alive_count * 3
     
-    if day_key not in state["vault_winners"]:
-        state["vault_winners"][day_key] = random.randint(1, total_boxes)
+    vault_contents = state["vault_contents"].setdefault(day_key, {})
+    if not vault_contents or len(vault_contents) != total_boxes:
+        state["vault_contents"][day_key] = initialize_vault_boxes(day_key, total_boxes, state["vault_config"])
         save_state(state)
-    
-    winning_box = state["vault_winners"][day_key]
+        vault_contents = state["vault_contents"][day_key]
+
     riddle_solved_dict = state["vault_riddle_solved"].setdefault(day_key, {})
     attempts_dict = state["vault_attempts"].setdefault(day_key, {})
     
     has_solved_riddle = riddle_solved_dict.get(selected_player, False)
-    has_attempted_today = attempts_dict.get(selected_player, False)
+    player_attempts = attempts_dict.get(selected_player, 0) # Max 3 per day
 
     daily_riddle_data = state["vault_riddles"].get(day_key, {
         "question": "Solve the riddle to gain access to the Safety Deposit Boxes.",
@@ -424,48 +463,67 @@ def render_player_portal_view(selected_player):
     if p_info["status"] != "Alive":
         st.warning("👻 Ghosts cannot tamper with the Safety Deposit Vault!")
     else:
-        st.markdown(f"**Total Deposit Boxes Active Today:** `{total_boxes}` (3x surviving players)")
+        st.markdown(f"**Active Wall:** `{total_boxes}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
         
-        if p_info["shield"]:
-            st.success("🛡️ You already hold a Shield in your possession! The vault doors remain closed to you today.")
-        elif has_attempted_today:
-            st.info("ℹ️ You have already tested your luck at the Safety Deposit Vault today. Return tomorrow!")
-        else:
-            if not has_solved_riddle:
-                st.markdown("### 🧩 Step 1: Solve the Gatekeeper Riddle")
-                st.markdown(f"> *\"{daily_riddle_data['question']}\"*")
-                with st.form(f"riddle_form_{selected_player}"):
-                    riddle_answer = st.text_input("Enter the secret password / word:")
-                    riddle_submit = st.form_submit_button("Submit Riddle Answer 🗝️")
-                    if riddle_submit:
-                        clean_ans = riddle_answer.strip().lower()
-                        correct_ans = daily_riddle_data["answer"].strip().lower()
-                        if clean_ans == correct_ans or clean_ans in [a.strip() for a in correct_ans.split(",")]:
-                            state["vault_riddle_solved"].setdefault(day_key, {})[selected_player] = True
-                            save_state(state)
-                            st.success("🔓 Correct! The gatekeeper unlocks access to the Safety Deposit Boxes.")
-                            st.rerun()
-                        else:
-                            st.error("❌ Incorrect answer. The vault remains sealed. Consult the whispers in the Castle and try again.")
-            else:
-                st.success("🔓 Gatekeeper Riddle Solved! You have 1 Key to open one Safety Deposit Box.")
-                st.markdown(f"*(🧪 Host Sandbox Hint: Today's winning box number is **#{winning_box}**)*")
-                st.markdown("### 🏦 Step 2: Choose Your Box (1 to {})".format(total_boxes))
-                
-                with st.form(f"vault_box_form_{selected_player}"):
-                    chosen_box = st.number_input("Select Box Number:", min_value=1, max_value=total_boxes, value=1, step=1)
-                    box_submit = st.form_submit_button("Open Box 📦")
-                    if box_submit:
-                        state["vault_attempts"].setdefault(day_key, {})[selected_player] = True
-                        if chosen_box == winning_box:
-                            state["players"][selected_player]["shield"] = True
-                            save_state(state)
-                            st.balloons()
-                            st.success(f"🎉 INCREDIBLE! Box #{chosen_box} contained the **Shield**! You are protected tonight.")
-                        else:
-                            save_state(state)
-                            st.error(f"💀 Box #{chosen_box} swings open... but it is completely empty. Better luck next time, Faithful.")
+        if not has_solved_riddle:
+            st.markdown("### 🧩 Step 1: Solve the Gatekeeper Riddle")
+            st.markdown(f"> *\"{daily_riddle_data['question']}\"*")
+            with st.form(f"riddle_form_{selected_player}"):
+                riddle_answer = st.text_input("Enter the secret password / word:")
+                riddle_submit = st.form_submit_button("Submit Riddle Answer 🗝️")
+                if riddle_submit:
+                    clean_ans = riddle_answer.strip().lower()
+                    correct_ans = daily_riddle_data["answer"].strip().lower()
+                    if clean_ans == correct_ans or clean_ans in [a.strip() for a in correct_ans.split(",")]:
+                        state["vault_riddle_solved"].setdefault(day_key, {})[selected_player] = True
+                        save_state(state)
+                        st.success("🔓 Correct! The gatekeeper unlocks the Wall of Safety Deposit Boxes.")
                         st.rerun()
+                    else:
+                        st.error("❌ Incorrect answer. The vault remains sealed. Consult the whispers in the Castle and try again.")
+        else:
+            st.success("🔓 Gatekeeper Riddle Solved! You have keys to select up to 3 closed boxes on the wall.")
+            st.markdown("### 🏦 Step 2: Select a Box from the Wall Below")
+            st.caption("Boxes marked as **Opened** have already been claimed by travelers and cannot be accessed.")
+
+            if player_attempts >= 3:
+                st.warning("⏳ You have used all 3 of your box selections for today. Return tomorrow or await the dawn!")
+            else:
+                # Render grid of boxes
+                cols_per_row = 5
+                box_keys = sorted(vault_contents.keys(), key=int)
+                for i in range(0, len(box_keys), cols_per_row):
+                    row_keys = box_keys[i:i + cols_per_row]
+                    cols = st.columns(cols_per_row)
+                    for idx, b_key in enumerate(row_keys):
+                        b_data = vault_contents[b_key]
+                        with cols[idx]:
+                            if b_data["opened"]:
+                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=f"btn_box_{day_key}_{b_key}")
+                            else:
+                                if st.button(f"📦 Box #{b_key}", key=f"btn_box_{day_key}_{b_key}"):
+                                    # Open the box
+                                    vault_contents[b_key]["opened"] = True
+                                    vault_contents[b_key]["opened_by"] = selected_player
+                                    state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
+                                    save_state(state)
+                                    
+                                    # Process reward
+                                    if b_data["type"] == "Shield":
+                                        state["players"][selected_player]["shield"] = True
+                                        save_state(state)
+                                        st.balloons()
+                                        st.success(f"🎉 INCREDIBLE! Box #{b_key} contained a **Shield**!")
+                                    elif b_data["type"] == "Points":
+                                        pts = b_data["value"]
+                                        state["players"][selected_player]["points"] = state["players"][selected_player].get("points", 0) + pts
+                                        save_state(state)
+                                        st.balloons()
+                                        st.success(f"✨ SUCCESS! Box #{b_key} contained **{pts} Prize Points**!")
+                                    else:
+                                        save_state(state)
+                                        st.error(f"📜 Box #{b_key} opened: {b_data['desc']}. Empty!")
+                                    st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
     if "Traitor" in p_info["role"] and p_info["status"] == "Alive":
@@ -666,7 +724,8 @@ elif nav == "📊 The Voting Matrix":
         row = {
             "Player": name,
             "Status": f"🟢 Alive" if status == "Alive" else f"{'💀' if status=='Murdered' else '🔴'} {status} ({pdata['eliminated_day']})",
-            "Revealed Identity": identity
+            "Revealed Identity": identity,
+            "Points": pdata.get("points", 0)
         }
         
         total_votes_received = 0
@@ -816,7 +875,7 @@ elif nav == "👑 Host Control (Neilio)":
         if col_bypass1.button("🔓 Instant Bypass Riddle for Selected Player"):
             state["vault_riddle_solved"].setdefault(day_key, {})[sandbox_player] = True
             save_state(state)
-            st.success(f"✅ Riddle bypassed for **{sandbox_player}**! They now have instant access to open a deposit box.")
+            st.success(f"✅ Riddle bypassed for **{sandbox_player}**! They now have instant access to open deposit boxes.")
             st.rerun()
         if col_bypass2.button("🔄 Reset Today's Vault Attempts for Player"):
             if day_key in state["vault_attempts"] and sandbox_player in state["vault_attempts"][day_key]:
@@ -870,6 +929,32 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
 
         st.divider()
+
+        # --- HOST VAULT CONFIGURATOR (SHIELDS, POINTS & CASTLE RELICS) ---
+        st.subheader("6. 🏆 Safety Deposit Box Contents & Prize Config")
+        st.caption("Configure how many shields, how many prize points, and what non-prize castle relics are randomly distributed among the boxes.")
+        
+        v_config = state.get("vault_config", {"shields_count": 2, "prize_points_value": 25, "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry, Dusty Tome, Broken Dagger, Empty Urn"})
+        
+        with st.form("host_vault_config_form"):
+            cfg_shields = st.number_input("Max Shields Hidden in Boxes (up to 3):", min_value=0, max_value=3, value=v_config.get("shields_count", 2))
+            cfg_points_val = st.number_input("Prize Points Value per Winning Box:", min_value=5, max_value=200, value=v_config.get("prize_points_value", 25), step=5)
+            cfg_relics = st.text_area("Non-Prize Castle Relics (comma-separated list):", value=v_config.get("relics_list", ""))
+            
+            save_vault_cfg = st.form_submit_button("💾 Save Vault & Prize Configuration")
+            if save_vault_cfg:
+                state["vault_config"] = {
+                    "shields_count": cfg_shields,
+                    "prize_points_value": cfg_points_val,
+                    "relics_list": cfg_relics.strip()
+                }
+                if day_key in state["vault_contents"]:
+                    del state["vault_contents"][day_key]
+                save_state(state)
+                st.success("✅ Vault prize configuration updated successfully!")
+                st.rerun()
+
+        st.markdown("---")
 
         # --- HOST RIDDLE EDITOR FOR SAFETY DEPOSIT VAULT ---
         st.subheader("5. 🧩 Daily Safety Deposit Vault & Riddle Settings")
@@ -1009,7 +1094,8 @@ elif nav == "👑 Host Control (Neilio)":
                 "Eliminated On": d["eliminated_day"],
                 "Secret Shield": d["shield"],
                 "Public Shield": d.get("public_shield", False),
-                "Hide Identity (Finale)": d.get("hide_role", False)
+                "Hide Identity (Finale)": d.get("hide_role", False),
+                "Points": d.get("points", 0)
             })
         
         edited_df = st.data_editor(
@@ -1036,7 +1122,8 @@ elif nav == "👑 Host Control (Neilio)":
                     "shield": bool(row["Secret Shield"]),
                     "public_shield": bool(row["Public Shield"]),
                     "hide_role": bool(row["Hide Identity (Finale)"]),
-                    "photo": existing_pdata.get("photo", "")
+                    "photo": existing_pdata.get("photo", ""),
+                    "points": int(row["Points"])
                 }
             state["players"] = updated_players
             save_state(state)
