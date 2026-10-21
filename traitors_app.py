@@ -186,7 +186,8 @@ def get_default_state():
         "players": default_players,
         "votes": {},
         "fire_pit_votes": {},
-        "turret_targets": {}
+        "turret_nominations": {},
+        "unanimous_murder": {}
     }
 
 def load_state():
@@ -198,6 +199,8 @@ def load_state():
         state = json.load(f)
     state.setdefault("fire_pit_round", 1)
     state.setdefault("fire_pit_votes", {})
+    state.setdefault("turret_nominations", {})
+    state.setdefault("unanimous_murder", {})
     for p in state.get("players", {}).values():
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
@@ -334,7 +337,7 @@ def render_player_portal_view(selected_player):
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open. Stand by in the Great Hall!")
 
-    # Traitor Turret Access Section
+    # --- TRAITOR TURRET ACCESS SECTION ---
     if "Traitor" in p_info["role"] and p_info["status"] == "Alive":
         st.divider()
         st.subheader("🗡️ The Traitors' Turret (Secret Access)")
@@ -349,17 +352,60 @@ def render_player_portal_view(selected_player):
             if "Traitor" not in d["role"] and d["status"] == "Alive" and not d.get("public_shield")
         ]
         
-        current_turret = state["turret_targets"].get(day_key, {})
-        if current_turret:
-            st.write("**Current Turret Murder Nominations:**")
-            for t_name, victim in current_turret.items():
-                st.write(f"• 🗡️ **{t_name}** targets: **{victim}**")
+        # Display all Traitors' 3-tier nominations
+        turret_noms = state["turret_nominations"].get(day_key, {})
+        if turret_noms:
+            st.markdown("---")
+            st.write("📜 **Traitor Discussion Board (All Nominees):**")
+            for t_name, choices in turret_noms.items():
+                st.write(f"• 🗡️ **{t_name}**'s 3 choices: **1st:** {choices.get('1st', '—')} | **2nd:** {choices.get('2nd', '—')} | **3rd:** {choices.get('3rd', '—')}")
 
-        if faithful_targets:
-            murder_choice = st.selectbox("Nominate Tonight's Murder Victim:", faithful_targets, key=f"turret_sel_{selected_player}")
-            if st.button("Lock In Murder Nomination 🩸", key=f"turret_btn_{selected_player}"):
-                state["turret_targets"].setdefault(day_key, {})[selected_player] = murder_choice
+        # Individual 3-Tier Nomination Form
+        existing_user_noms = turret_noms.get(selected_player, {})
+        with st.form(f"turret_noms_form_{selected_player}" ):
+            st.markdown("### 🎯 Submit Your Top 3 Murder Preferences")
+            st.caption("Select up to 3 possible Faithful victims in order of priority for tonight's discussion.")
+            
+            def_1st = existing_user_noms.get("1st", faithful_targets[0] if faithful_targets else "")
+            def_2nd = existing_user_noms.get("2nd", faithful_targets[1] if len(faithful_targets) > 1 else (faithful_targets[0] if faithful_targets else ""))
+            def_3rd = existing_user_noms.get("3rd", faithful_targets[2] if len(faithful_targets) > 2 else (faithful_targets[0] if faithful_targets else ""))
+
+            opt_1st = st.selectbox("1st Choice (Top Target):", faithful_targets, index=faithful_targets.index(def_1st) if def_1st in faithful_targets else 0)
+            opt_2nd = st.selectbox("2nd Choice (Backup Target):", faithful_targets, index=faithful_targets.index(def_2nd) if def_2nd in faithful_targets else 0)
+            opt_3rd = st.selectbox("3rd Choice (Third Option):", faithful_targets, index=faithful_targets.index(def_3rd) if def_3rd in faithful_targets else 0)
+            
+            submit_noms = st.form_submit_button("Lock In My Top 3 Choices 🩸")
+            if submit_noms:
+                state["turret_nominations"].setdefault(day_key, {})[selected_player] = {
+                    "1st": opt_1st,
+                    "2nd": opt_2nd,
+                    "3rd": opt_3rd
+                }
                 save_state(state)
+                st.success("✅ Your 3 target preferences have been shared with your fellow Traitors in the Turret.")
+                st.rerun()
+
+        st.markdown("---")
+        st.subheader("⚖️ Unanimous Murder Decree")
+        current_murder = state["unanimous_murder"].get(day_key, "")
+        if current_murder:
+            st.error(f"🩸 **UNANIMOUS MURDER LOCKED IN:** **{current_murder}** will not see the light of breakfast tomorrow!")
+        
+        if faithful_targets:
+            unanimous_choice = st.selectbox("Select Unanimous Murder Victim (Agreed upon by Traitors):", faithful_targets, key=f"unanimous_sel_{selected_player}")
+            col_lock, col_reset = st.columns(2)
+            if col_lock.button("🔒 Lock In Unanimous Murder Victim 💀", key=f"lock_murder_{selected_player}"):
+                state["unanimous_murder"][day_key] = unanimous_choice
+                save_state(state)
+                st.success(f"🩸 Murder decree sealed! **{unanimous_choice}** has been marked for death.")
+                st.rerun()
+            if col_reset.button("🔄 Emergency Reset Turret", key=f"reset_turret_{selected_player}"):
+                if day_key in state["turret_nominations"]:
+                    del state["turret_nominations"][day_key]
+                if day_key in state["unanimous_murder"]:
+                    del state["unanimous_murder"][day_key]
+                save_state(state)
+                st.warning("⚠️ Turret nominations and unanimous murder choice have been reset for tonight.")
                 st.rerun()
 
 # ==========================================
