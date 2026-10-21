@@ -485,19 +485,32 @@ def render_player_portal_view(selected_player):
                                     state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
                                     save_state(state)
                                     
+                                    # Audio and visual feedback
                                     if b_data["type"] == "Shield":
                                         state["players"][selected_player]["shield"] = True
                                         save_state(state)
+                                        st.markdown(
+                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3" type="audio/mp3"></audio>',
+                                            unsafe_allow_html=True
+                                        )
                                         st.balloons()
                                         st.success(f"🎉 INCREDIBLE! Box #{b_key} contained a **Shield**!")
                                     elif b_data["type"] == "Points":
                                         pts = b_data["value"]
                                         state["players"][selected_player]["points"] = state["players"][selected_player].get("points", 0) + pts
                                         save_state(state)
+                                        st.markdown(
+                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" type="audio/mp3"></audio>',
+                                            unsafe_allow_html=True
+                                        )
                                         st.balloons()
                                         st.success(f"✨ SUCCESS! Box #{b_key} contained **{pts} Prize Points**!")
                                     else:
                                         save_state(state)
+                                        st.markdown(
+                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
+                                            unsafe_allow_html=True
+                                        )
                                         st.error(f"📜 Box #{b_key} opened: {b_data['desc']}. Empty!")
                                     st.rerun()
 
@@ -598,6 +611,12 @@ nav = st.sidebar.radio("Navigate", nav_options)
 if nav == "🏰 Castle Hall (Public)":
     st.title("🏰 The Great Hall of Shadows")
     st.info(f"📢 **DECREE FROM HOST NEILIO:** {state['headline']}")
+
+    # Play atmospheric door creak on castle hall load
+    st.markdown(
+        '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
+        unsafe_allow_html=True
+    )
 
     if is_finale_unlocked:
         st.success("🏆 **THE GRAND FINALE IS LIVE!** Click **'🏆 The Grand Reveal (4PM Finale)'** in the sidebar to see who won and unmask every player!")
