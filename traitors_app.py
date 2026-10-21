@@ -176,12 +176,12 @@ PHASES = [
 
 def get_default_state():
     default_players = {}
-    for i in range(1, 21):  # Configured for exactly 20 Players!
+    for i in range(1, 21):  # Configured for exactly 20 Players + Caste Owl!
         name = f"Player {i:02d}"
         random_pin = str(random.randint(1000, 9999))  # Random secure 4-digit PIN generator
         default_players[name] = {
             "pin": random_pin,
-            "role": "Faithful",  # Everyone starts as Faithful by default! Neilio assigns Traitors later.
+            "role": "Faithful",
             "status": "Alive",
             "eliminated_day": "",
             "shield": False,
@@ -189,6 +189,18 @@ def get_default_state():
             "hide_role": False,
             "photo": ""
         }
+    # Add Caste Owl as a dedicated test player
+    default_players["Caste Owl"] = {
+        "pin": "1411",
+        "role": "Faithful",
+        "status": "Alive",
+        "eliminated_day": "",
+        "shield": False,
+        "public_shield": False,
+        "hide_role": False,
+        "photo": ""
+    }
+
     return {
         "current_day": 1,
         "fire_pit_round": 1,
@@ -233,6 +245,18 @@ def load_state():
             "answer": "wish"
         }
     })
+    # Ensure Caste Owl exists if loading an older state file without it
+    if "Caste Owl" not in state.get("players", {}):
+        state.setdefault("players", {})["Caste Owl"] = {
+            "pin": "1411",
+            "role": "Faithful",
+            "status": "Alive",
+            "eliminated_day": "",
+            "shield": False,
+            "public_shield": False,
+            "hide_role": False,
+            "photo": ""
+        }
     for p in state.get("players", {}).values():
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
@@ -392,7 +416,6 @@ def render_player_portal_view(selected_player):
     has_solved_riddle = riddle_solved_dict.get(selected_player, False)
     has_attempted_today = attempts_dict.get(selected_player, False)
 
-    # Fetch daily riddle set by Host
     daily_riddle_data = state["vault_riddles"].get(day_key, {
         "question": "Solve the riddle to gain access to the Safety Deposit Boxes.",
         "answer": "wish"
@@ -426,6 +449,7 @@ def render_player_portal_view(selected_player):
                             st.error("❌ Incorrect answer. The vault remains sealed. Consult the whispers in the Castle and try again.")
             else:
                 st.success("🔓 Gatekeeper Riddle Solved! You have 1 Key to open one Safety Deposit Box.")
+                st.markdown(f"*(🧪 Host Sandbox Hint: Today's winning box number is **#{winning_box}**)*")
                 st.markdown("### 🏦 Step 2: Choose Your Box (1 to {})".format(total_boxes))
                 
                 with st.form(f"vault_box_form_{selected_player}"):
@@ -782,6 +806,26 @@ elif nav == "👑 Host Control (Neilio)":
         god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
         with st.expander(f"🔮 Active Viewport Preview: {god_mode_player}", expanded=True):
             render_player_portal_view(god_mode_player)
+        st.markdown("---")
+        
+        # --- HOST SANDBOX: BYPASS RIDDLE FOR TESTING ---
+        st.subheader("🧪 Host Sandbox: Instant Riddle Bypass")
+        st.caption("Select a player below and click to instantly solve today's riddle for them so you can test opening deposit boxes immediately.")
+        sandbox_player = st.selectbox("Select Test Player:", list(state["players"].keys()), key="sandbox_player_select")
+        col_bypass1, col_bypass2 = st.columns(2)
+        if col_bypass1.button("🔓 Instant Bypass Riddle for Selected Player"):
+            state["vault_riddle_solved"].setdefault(day_key, {})[sandbox_player] = True
+            save_state(state)
+            st.success(f"✅ Riddle bypassed for **{sandbox_player}**! They now have instant access to open a deposit box.")
+            st.rerun()
+        if col_bypass2.button("🔄 Reset Today's Vault Attempts for Player"):
+            if day_key in state["vault_attempts"] and sandbox_player in state["vault_attempts"][day_key]:
+                del state["vault_attempts"][day_key][sandbox_player]
+            if day_key in state["vault_riddle_solved"] and sandbox_player in state["vault_riddle_solved"][day_key]:
+                del state["vault_riddle_solved"][day_key][sandbox_player]
+            save_state(state)
+            st.warning(f"⚠️ Vault attempts and riddle status reset for **{sandbox_player}**.")
+            st.rerun()
         st.markdown("---")
         
         # --- THE MASTER TREACHERY SWITCH ---
