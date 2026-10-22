@@ -216,6 +216,7 @@ def get_default_state():
         "phase": "24-Hour Asynchronous Window",
         "prize_pot": 100,
         "traitor_pot": 0,
+        "vault_room_open": True,
         "voting_matrix_unlocked": False,
         "traitor_vote_locked": False,
         "headline": "Welcome to Neilio's Castle! The 24-hour asynchronous window is open. Check your role and vote whenever you have a break.",
@@ -257,6 +258,7 @@ def load_state():
     state.setdefault("vault_attempts", {})
     state.setdefault("vault_riddle_solved", {})
     state.setdefault("vault_recent_open", {})
+    state.setdefault("vault_room_open", True)
     state.setdefault("voting_matrix_unlocked", False)
     state.setdefault("traitor_vote_locked", False)
     state.setdefault("vault_riddles", {
@@ -337,22 +339,25 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     random.shuffle(box_numbers)
     
     shields_to_assign = min(config.get("shields_count", 2), total_boxes)
-    points_to_assign = max(1, total_boxes // 3)
+    curses_to_assign = min(5, total_boxes - shields_to_assign) # 5 Cursed boxes
+    points_to_assign = max(1, (total_boxes - shields_to_assign - curses_to_assign) // 2)
     
     relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
     if not relics_pool:
-        relics_pool = ["Rusted Iron Key", "Dusty Tome", "Empty Urn"]
+        relics_pool = ["Rusted Iron Key", "Dusty Tome of Spells", "Broken Dagger"]
 
     for i in range(total_boxes):
         b_num = str(box_numbers[i])
         if i < shields_to_assign:
             boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
-        elif i < shields_to_assign + points_to_assign:
+        elif i < shields_to_assign + curses_to_assign:
+            boxes[b_num] = {"type": "Curse", "desc": "💀 CURSED BOX! Traitors tampered with this lock! Group prize pot loses 100 points!", "opened": False, "opened_by": ""}
+        elif i < shields_to_assign + curses_to_assign + points_to_assign:
             pts = config.get("prize_points_value", 25)
-            boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Prize Points!", "opened": False, "opened_by": ""}
+            boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Group Prize Points added!", "opened": False, "opened_by": ""}
         else:
             relic = random.choice(relics_pool)
-            boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic}", "opened": False, "opened_by": ""}
+            boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic} (No effect)", "opened": False, "opened_by": ""}
             
     return boxes
 
@@ -457,6 +462,12 @@ def render_player_portal_view(selected_player):
     # --- VAULT OF SAFETY DEPOSIT BOXES CHALLENGE ---
     st.divider()
     st.subheader("🏦 The Wall of Safety Deposit Boxes")
+    
+    if not state.get("vault_room_open", True):
+        st.warning("🔒 **THE SAFETY DEPOSIT VAULT ROOM IS CURRENTLY LOCKED BY HOST NEILIO.**")
+        st.info("Await further instructions or decrees from the Host before attempting to open any boxes.")
+        return
+
     alive_count = sum(1 for d in state["players"].values() if str(d.get("status", "Alive")) in ["Alive", "Undead"])
     total_boxes = alive_count * 3
     
@@ -487,8 +498,10 @@ def render_player_portal_view(selected_player):
         if recent_open and recent_open.get("day") == day_key:
             if recent_open["type"] in ["Shield", "Points"]:
                 st.success(f"🎉 **Box #{recent_open['box']} Opened!** {recent_open['desc']}")
+            elif recent_open["type"] == "Curse":
+                st.error(f"💀 **Box #{recent_open['box']} Opened!** {recent_open['desc']}")
             else:
-                st.error(f"📜 **Box #{recent_open['box']} Opened!** {recent_open['desc']}")
+                st.info(f"📜 **Box #{recent_open['box']} Opened!** {recent_open['desc']}")
 
         if not has_solved_riddle:
             st.markdown("### 🧩 Step 1: Solve the Gatekeeper Riddle")
@@ -557,13 +570,20 @@ def render_player_portal_view(selected_player):
                                         st.balloons()
                                     elif b_data["type"] == "Points":
                                         pts = b_data["value"]
-                                        state["players"][selected_player]["points"] = state["players"][selected_player].get("points", 0) + pts
+                                        state["prize_pot"] += pts  # Adds directly to shared group total
                                         save_state(state)
                                         st.markdown(
                                             '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" type="audio/mp3"></audio>',
                                             unsafe_allow_html=True
                                         )
                                         st.balloons()
+                                    elif b_data["type"] == "Curse":
+                                        state["prize_pot"] = max(0, state["prize_pot"] - 100)  # Penalty to group pot
+                                        save_state(state)
+                                        st.markdown(
+                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
+                                            unsafe_allow_html=True
+                                        )
                                     else:
                                         save_state(state)
                                         st.markdown(
@@ -693,12 +713,12 @@ if nav == "🏰 Castle Hall (Public)":
         any_claims = False
         for d_key, contents in state.get("vault_contents", {}).items():
             for b_id, b_info in contents.items():
-                if b_info.get("opened") and b_info.get("type") in ["Shield", "Points"]:
+                if b_info.get("opened") and b_info.get("type") in ["Shield", "Points", "Curse"]:
                     any_claims = True
                     claimer_name = b_info.get("opened_by", "A Traveler")
                     st.write(f"• **{d_key} (Box #{b_id})**: Claimed **{b_info['desc']}** by *{claimer_name}*")
         if not any_claims:
-            st.write("No Shields or Prize Points have been claimed from the vault yet. The boxes await...")
+            st.write("No Shields, Curses, or Prize Points have been claimed from the vault yet. The boxes await...")
 
     st.subheader("🖼️ Portraits on the Great Hall Wall")
     players_list = list(state["players"].items())
@@ -952,6 +972,39 @@ elif nav == "👑 Host Control (Neilio)":
             render_player_portal_view(god_mode_player)
         st.markdown("---")
         
+        # --- VAULT ROOM OPEN/CLOSE TOGGLE ---
+        st.subheader("🏦 Safety Deposit Vault Room Access Control")
+        vault_room_status = state.get("vault_room_open", True)
+        new_vault_room_status = st.toggle("🔓 Safety Deposit Vault Room Open to Players", value=vault_room_status)
+        if new_vault_room_status != vault_room_status:
+            state["vault_room_open"] = new_vault_room_status
+            save_state(state)
+            if new_vault_room_status:
+                st.success("✅ Vault room opened! Players can now solve riddles and open boxes.")
+            else:
+                st.warning("🔒 Vault room locked down! Players cannot open boxes.")
+            st.rerun()
+        st.markdown("---")
+
+        # --- GROUP PRIZE POT REALLOCATION ---
+        st.subheader("💰 Group Prize Pot & Point Reallocation")
+        st.caption("Transfer individual player point hoards back into the centralized group prize pool.")
+        col_r1, col_r2 = st.columns(2)
+        reallocate_player = col_r1.selectbox("Select Player to Seize Points From:", list(state["players"].keys()), key="reallocate_p_sel")
+        seize_amount = col_r2.number_input("Points to Transfer to Group Pot:", min_value=0, value=50, step=10)
+
+        if st.button("📥 Transfer Points to Group Prize Pot"):
+            p_pts = state["players"][reallocate_player].get("points", 0)
+            if p_pts < seize_amount:
+                st.error(f"{reallocate_player} only has {p_pts} points available.")
+            else:
+                state["players"][reallocate_player]["points"] -= seize_amount
+                state["prize_pot"] += seize_amount
+                save_state(state)
+                st.success(f"Successfully transferred {seize_amount} pts from {reallocate_player} into the Group Prize Pot!")
+                st.rerun()
+        st.markdown("---")
+
         # --- VOTING MATRIX ACCESS CONTROL TOGGLE ---
         st.subheader("📊 Voting Matrix Access Control")
         current_matrix_status = state.get("voting_matrix_unlocked", False)
@@ -1103,7 +1156,7 @@ elif nav == "👑 Host Control (Neilio)":
             index=PHASES.index(state["phase"]) if state["phase"] in PHASES else 0
         )
         new_fp_round = c3.number_input("Fire Pit Round", min_value=1, max_value=5, value=state.get("fire_pit_round", 1))
-        new_pot = c4.number_input("Faithful Prize Pot", value=state["prize_pot"], step=50)
+        new_pot = c4.number_input("Group Prize Pot", value=state["prize_pot"], step=50)
         
         new_headline = st.text_input("Great Hall Banner Headline", value=state["headline"])
         new_mission = st.text_area("Daily Mission / Decree Instructions", value=state["mission_text"])
