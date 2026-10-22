@@ -896,9 +896,32 @@ elif nav == "👑 Host Control (Neilio)":
             render_player_portal_view(god_mode_player)
         st.markdown("---")
         
-        # --- HOST VAULT X-RAY INSPECTOR ---
-        st.subheader("🔍 Host Vault X-Ray Inspection")
-        st.caption("Inspect the contents of all Safety Deposit Boxes for today without opening them.")
+        # --- HOST VAULT X-RAY INSPECTOR & CONTROLS ---
+        st.subheader("🔍 Host Vault X-Ray Inspector & Controls")
+        st.caption("Inspect the contents of all Safety Deposit Boxes for today, re-shuffle them randomly, or reset all opened boxes and attempts.")
+        
+        col_vault_btn1, col_vault_btn2 = st.columns(2)
+        if col_vault_btn1.button("🎲 Re-shuffle & Randomize Today's Vault"):
+            alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "Alive")) == "Alive")
+            tot_b = alive_c * 3
+            state["vault_contents"][day_key] = initialize_vault_boxes(day_key, tot_b, state["vault_config"])
+            save_state(state)
+            st.success("🎲 Vault contents successfully re-shuffled and randomized!")
+            st.rerun()
+
+        if col_vault_btn2.button("🔄 Reset Today's Vault (Clear All Opens & Attempts)"):
+            if day_key in state["vault_contents"]:
+                del state["vault_contents"][day_key]
+            if day_key in state["vault_attempts"]:
+                del state["vault_attempts"][day_key]
+            if day_key in state["vault_riddle_solved"]:
+                del state["vault_riddle_solved"][day_key]
+            for p_dat in state["players"].values():
+                p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day") != day_key]
+            save_state(state)
+            st.warning("⚠️ Today's vault has been completely reset! All boxes are closed and attempts cleared.")
+            st.rerun()
+
         current_vault_xray = state.get("vault_contents", {}).get(day_key, {})
         if current_vault_xray:
             xray_rows = []
