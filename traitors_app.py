@@ -81,6 +81,24 @@ st.markdown("""
         pointer-events: none;
         z-index: 5;
     }
+
+    /* Undead / Ghost Card Styling */
+    .player-card-undead {
+        position: relative;
+        border: 2px solid #4a154b;
+        background: #e2d9f3;
+        opacity: 0.9;
+    }
+    .undead-ghost {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 52px;
+        pointer-events: none;
+        z-index: 5;
+        filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.4));
+    }
     
     /* Grand Finale Banners */
     .finale-banner-traitor {
@@ -199,6 +217,7 @@ def get_default_state():
         "prize_pot": 100,
         "traitor_pot": 0,
         "voting_matrix_unlocked": False,
+        "traitor_vote_locked": False,
         "headline": "Welcome to Neilio's Castle! The 24-hour asynchronous window is open. Check your role and vote whenever you have a break.",
         "mission_text": "🏆 **MISSION 1: TWO TRUTHS & AN ALIBI**\nPost two true facts and one lie in the WhatsApp chat over the next 24 hours!",
         "players": default_players,
@@ -239,6 +258,7 @@ def load_state():
     state.setdefault("vault_riddle_solved", {})
     state.setdefault("vault_recent_open", {})
     state.setdefault("voting_matrix_unlocked", False)
+    state.setdefault("traitor_vote_locked", False)
     state.setdefault("vault_riddles", {
         "Day 1": {
             "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
@@ -283,7 +303,7 @@ def get_public_identity(pdata, force_reveal=False):
             return "❓ Unknown", ""
         if pdata.get("hide_role", False):
             return "🔒 Hidden (Finale)", "role-hidden"
-        if status == "Murdered":
+        if status in ["Undead", "Murdered", "Banished"]:
             return "🕯️ Faithful", "role-faithful"
     if "Traitor" in role:
         return f"🗡️ {role.upper()}", "role-traitor"
@@ -363,7 +383,7 @@ def render_player_portal_view(selected_player):
 
     if state["phase"] == "The Fire Pit (Endgame)":
         st.subheader(f"🔥 The Fire Pit of Truth — {fp_key}")
-        if status != "Alive":
+        if status != "Alive" and status != "Undead":
             st.warning("👻 Only surviving finalists stand before the Fire Pit flames!")
         else:
             st.markdown(
@@ -396,12 +416,12 @@ def render_player_portal_view(selected_player):
                         st.success(f"✅ Your **{fp_choice}** pouch is locked in for {fp_key}!")
     elif state["phase"] == "Round Table Voting":
         st.subheader(f"🗳️ Round Table Ballot ({day_key})")
-        if status != "Alive":
+        if status != "Alive" and status != "Undead":
             st.warning("👻 Ghosts cannot cast votes at the Round Table!")
         else:
             alive_targets = [
                 name for name, d in state["players"].items() 
-                if str(d.get("status", "Alive")) == "Alive" and name != selected_player
+                if str(d.get("status", "Alive")) in ["Alive", "Undead"] and name != selected_player
             ]
             existing_vote = state["votes"].get(day_key, {}).get(selected_player, {})
             
@@ -437,7 +457,7 @@ def render_player_portal_view(selected_player):
     # --- VAULT OF SAFETY DEPOSIT BOXES CHALLENGE ---
     st.divider()
     st.subheader("🏦 The Wall of Safety Deposit Boxes")
-    alive_count = sum(1 for d in state["players"].values() if str(d.get("status", "Alive")) == "Alive")
+    alive_count = sum(1 for d in state["players"].values() if str(d.get("status", "Alive")) in ["Alive", "Undead"])
     total_boxes = alive_count * 3
     
     vault_contents = state["vault_contents"].setdefault(day_key, {})
@@ -457,7 +477,7 @@ def render_player_portal_view(selected_player):
         "answer": "wish"
     })
 
-    if status != "Alive":
+    if status != "Alive" and status != "Undead":
         st.warning("👻 Ghosts cannot tamper with the Safety Deposit Vault!")
     else:
         st.markdown(f"**Active Wall:** `{total_boxes}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
@@ -553,73 +573,76 @@ def render_player_portal_view(selected_player):
                                     st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
-    if "Traitor" in role and status == "Alive":
+    if "Traitor" in role and status in ["Alive", "Undead"]:
         st.divider()
         st.subheader("🗡️ The Traitors' Turret (Secret Access)")
         fellow_traitors = [
             n for n, d in state["players"].items() 
-            if "Traitor" in str(d.get("role", "")) and str(d.get("status", "Alive")) == "Alive"
+            if "Traitor" in str(d.get("role", "")) and str(d.get("status", "")) in ["Alive", "Undead"]
         ]
         st.markdown(f"**Surviving Traitors in the Turret:** {', '.join(fellow_traitors)} | **Traitor Pot:** `{state['traitor_pot']} pts`")
         
-        faithful_targets = [
-            n for n, d in state["players"].items()
-            if "Traitor" not in str(d.get("role", "")) and str(d.get("status", "Alive")) == "Alive" and not d.get("public_shield")
-        ]
-        
-        turret_noms = state["turret_nominations"].get(day_key, {})
-        if turret_noms:
+        if state.get("traitor_vote_locked", False):
+            st.error("🔒 **THE TURRET DOORS ARE BARRED!** High Host Neilio has locked Traitor voting for the night. No further bloodshed or coordination is permitted.")
+        else:
+            faithful_targets = [
+                n for n, d in state["players"].items()
+                if "Traitor" not in str(d.get("role", "")) and str(d.get("status", "")) in ["Alive", "Undead"] and not d.get("public_shield")
+            ]
+            
+            turret_noms = state["turret_nominations"].get(day_key, {})
+            if turret_noms:
+                st.markdown("---")
+                st.write("📜 **Traitor Discussion Board (All Nominees):**")
+                for t_name, choices in turret_noms.items():
+                    st.write(f"• 🗡️ **{t_name}**'s 3 choices: **1st:** {choices.get('1st', '—')} | **2nd:** {choices.get('2nd', '—')} | **3rd:** {choices.get('3rd', '—')}")
+
+            existing_user_noms = turret_noms.get(selected_player, {})
+            with st.form(f"turret_noms_form_{selected_player}"):
+                st.markdown("### 🎯 Submit Your Top 3 Murder Preferences")
+                st.caption("Select up to 3 possible Faithful victims in order of priority for tonight's discussion.")
+                
+                def_1st = existing_user_noms.get("1st", faithful_targets[0] if faithful_targets else "")
+                def_2nd = existing_user_noms.get("2nd", faithful_targets[1] if len(faithful_targets) > 1 else (faithful_targets[0] if faithful_targets else ""))
+                def_3rd = existing_user_noms.get("3rd", faithful_targets[2] if len(faithful_targets) > 2 else (faithful_targets[0] if faithful_targets else ""))
+
+                opt_1st = st.selectbox("1st Choice (Top Target):", faithful_targets, index=faithful_targets.index(def_1st) if def_1st in faithful_targets else 0)
+                opt_2nd = st.selectbox("2nd Choice (Backup Target):", faithful_targets, index=faithful_targets.index(def_2nd) if def_2nd in faithful_targets else 0)
+                opt_3rd = st.selectbox("3rd Choice (Third Option):", faithful_targets, index=faithful_targets.index(def_3rd) if def_3rd in faithful_targets else 0)
+                
+                submit_noms = st.form_submit_button("Lock In My Top 3 Choices 🩸")
+                if submit_noms:
+                    state["turret_nominations"].setdefault(day_key, {})[selected_player] = {
+                        "1st": opt_1st,
+                        "2nd": opt_2nd,
+                        "3rd": opt_3rd
+                    }
+                    save_state(state)
+                    st.success("✅ Your 3 target preferences have been shared with your fellow Traitors in the Turret.")
+                    st.rerun()
+
             st.markdown("---")
-            st.write("📜 **Traitor Discussion Board (All Nominees):**")
-            for t_name, choices in turret_noms.items():
-                st.write(f"• 🗡️ **{t_name}**'s 3 choices: **1st:** {choices.get('1st', '—')} | **2nd:** {choices.get('2nd', '—')} | **3rd:** {choices.get('3rd', '—')}")
-
-        existing_user_noms = turret_noms.get(selected_player, {})
-        with st.form(f"turret_noms_form_{selected_player}"):
-            st.markdown("### 🎯 Submit Your Top 3 Murder Preferences")
-            st.caption("Select up to 3 possible Faithful victims in order of priority for tonight's discussion.")
+            st.subheader("⚖️ Unanimous Murder Decree")
+            current_murder = state["unanimous_murder"].get(day_key, "")
+            if current_murder:
+                st.error(f"🩸 **UNANIMOUS MURDER LOCKED IN:** **{current_murder}** will not see the light of breakfast tomorrow!")
             
-            def_1st = existing_user_noms.get("1st", faithful_targets[0] if faithful_targets else "")
-            def_2nd = existing_user_noms.get("2nd", faithful_targets[1] if len(faithful_targets) > 1 else (faithful_targets[0] if faithful_targets else ""))
-            def_3rd = existing_user_noms.get("3rd", faithful_targets[2] if len(faithful_targets) > 2 else (faithful_targets[0] if faithful_targets else ""))
-
-            opt_1st = st.selectbox("1st Choice (Top Target):", faithful_targets, index=faithful_targets.index(def_1st) if def_1st in faithful_targets else 0)
-            opt_2nd = st.selectbox("2nd Choice (Backup Target):", faithful_targets, index=faithful_targets.index(def_2nd) if def_2nd in faithful_targets else 0)
-            opt_3rd = st.selectbox("3rd Choice (Third Option):", faithful_targets, index=faithful_targets.index(def_3rd) if def_3rd in faithful_targets else 0)
-            
-            submit_noms = st.form_submit_button("Lock In My Top 3 Choices 🩸")
-            if submit_noms:
-                state["turret_nominations"].setdefault(day_key, {})[selected_player] = {
-                    "1st": opt_1st,
-                    "2nd": opt_2nd,
-                    "3rd": opt_3rd
-                }
-                save_state(state)
-                st.success("✅ Your 3 target preferences have been shared with your fellow Traitors in the Turret.")
-                st.rerun()
-
-        st.markdown("---")
-        st.subheader("⚖️ Unanimous Murder Decree")
-        current_murder = state["unanimous_murder"].get(day_key, "")
-        if current_murder:
-            st.error(f"🩸 **UNANIMOUS MURDER LOCKED IN:** **{current_murder}** will not see the light of breakfast tomorrow!")
-        
-        if faithful_targets:
-            unanimous_choice = st.selectbox("Select Unanimous Murder Victim (Agreed upon by Traitors):", faithful_targets, key=f"unanimous_sel_{selected_player}")
-            col_lock, col_reset = st.columns(2)
-            if col_lock.button("🔒 Lock In Unanimous Murder Victim 💀", key=f"lock_murder_{selected_player}"):
-                state["unanimous_murder"][day_key] = unanimous_choice
-                save_state(state)
-                st.success(f"🩸 Murder decree sealed! **{unanimous_choice}** has been marked for death.")
-                st.rerun()
-            if col_reset.button("🔄 Emergency Reset Turret", key=f"reset_turret_{selected_player}"):
-                if day_key in state["turret_nominations"]:
-                    del state["turret_nominations"][day_key]
-                if day_key in state["unanimous_murder"]:
-                    del state["unanimous_murder"][day_key]
-                save_state(state)
-                st.warning("⚠️ Turret nominations and unanimous murder choice have been reset for tonight.")
-                st.rerun()
+            if faithful_targets:
+                unanimous_choice = st.selectbox("Select Unanimous Murder Victim (Agreed upon by Traitors):", faithful_targets, key=f"unanimous_sel_{selected_player}")
+                col_lock, col_reset = st.columns(2)
+                if col_lock.button("🔒 Lock In Unanimous Murder Victim 💀", key=f"lock_murder_{selected_player}"):
+                    state["unanimous_murder"][day_key] = unanimous_choice
+                    save_state(state)
+                    st.success(f"🩸 Murder decree sealed! **{unanimous_choice}** has been marked for death.")
+                    st.rerun()
+                if col_reset.button("🔄 Reset Turret", key=f"reset_turret_{selected_player}"):
+                    if day_key in state["turret_nominations"]:
+                        del state["turret_nominations"][day_key]
+                    if day_key in state["unanimous_murder"]:
+                        del state["unanimous_murder"][day_key]
+                    save_state(state)
+                    st.warning("⚠️ Turret nominations and unanimous murder choice have been reset for tonight.")
+                    st.rerun()
 
 # ==========================================
 # SIDEBAR NAVIGATION & METRICS
@@ -629,7 +652,7 @@ st.sidebar.markdown(f"**High Host:** Neilio 👑")
 st.sidebar.markdown(f"**Current Day:** Day {state['current_day']} of 10")
 st.sidebar.markdown(f"**Current Phase:** `{state['phase']}`")
 
-alive_count = sum(1 for p in state["players"].values() if str(p.get("status", "Alive")) == "Alive")
+alive_count = sum(1 for p in state["players"].values() if str(p.get("status", "Alive")) in ["Alive", "Undead"])
 st.sidebar.metric("🟢 Survivors in Castle", f"{alive_count} / {len(state['players'])}")
 st.sidebar.metric("🏆 Faithful Prize Pot", f"{state['prize_pot']} pts")
 
@@ -702,8 +725,18 @@ if nav == "🏰 Castle Hall (Public)":
                 <div class="{role_class}" style="font-size: 11px; margin-top: 2px;">Identity: {revealed_role}</div>
             </div>
             """
+        elif status == "Undead":
+            revealed_role, role_class = get_public_identity(pdata, force_reveal=is_finale_unlocked)
+            card_html = f"""
+            <div class="player-card player-card-undead">
+                <div class="undead-ghost">👻</div>
+                {avatar_display}
+                <div style="font-weight: bold; font-size: 15px; margin-top: 2px; color: #4a154b;">{name}</div>
+                <div style="font-size: 12px; color: #4a154b; font-weight: bold;">👻 Undead</div>
+                <div class="{role_class}" style="font-size: 11px; margin-top: 2px;">{revealed_role}</div>
+            </div>
+            """
         else:
-            icon = "💀" if status == "Murdered" else "🔴"
             revealed_role, role_class = get_public_identity(pdata, force_reveal=is_finale_unlocked)
             card_html = f"""
             <div class="player-card player-card-dead">
@@ -772,9 +805,10 @@ elif nav == "📊 The Voting Matrix":
             status = str(pdata.get("status", "Alive"))
             identity, _ = get_public_identity(pdata, force_reveal=is_finale_unlocked)
 
+            status_display = f"🟢 Alive" if status == "Alive" else (f"👻 Undead" if status == "Undead" else f"{'💀' if status=='Murdered' else '🔴'} {status} ({pdata.get('eliminated_day', '')})")
             row = {
                 "Player": name,
-                "Status": f"🟢 Alive" if status == "Alive" else f"{'💀' if status=='Murdered' else '🔴'} {status} ({pdata.get('eliminated_day', '')})",
+                "Status": status_display,
                 "Revealed Identity": identity,
                 "Points": pdata.get("points", 0)
             }
@@ -809,7 +843,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             "once the final pouches have been thrown."
         )
     else:
-        survivors = {n: d for n, d in state["players"].items() if str(d.get("status", "Alive")) == "Alive"}
+        survivors = {n: d for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]}
         surviving_traitors = [n for n, d in survivors.items() if "Traitor" in str(d.get("role", ""))]
         surviving_faithfuls = [n for n, d in survivors.items() if "Traitor" not in str(d.get("role", ""))]
 
@@ -856,7 +890,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
         all_traitors = [(n, d) for n, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
         t_cols = st.columns(max(len(all_traitors), 1))
         for idx, (t_name, t_data) in enumerate(all_traitors):
-            fate = "🏆 SURVIVED TO THE END" if str(t_data.get("status", "")) == "Alive" else f"🔴 Banished ({t_data.get('eliminated_day', '')})"
+            fate = "🏆 SURVIVED TO THE END" if str(t_data.get("status", "")) in ["Alive", "Undead"] else f"🔴 Banished ({t_data.get('eliminated_day', '')})"
             t_cols[idx].markdown(f"""
             <div class="award-card">
                 <div style="font-size: 24px; color: #2c2a29;">🗡️ <b>{t_name}</b></div>
@@ -932,6 +966,39 @@ elif nav == "👑 Host Control (Neilio)":
                 st.warning("🔒 Voting Matrix locked from public view.")
             st.rerun()
         st.markdown("---")
+
+        # --- TRAITOR VOTE LOCK CONTROL ---
+        st.subheader("🔒 Traitor Turret Lock Control")
+        current_turret_lock = state.get("traitor_vote_locked", False)
+        new_turret_lock = st.toggle("🔒 Lock Traitor Voting & Murder Decrees", value=current_turret_lock)
+        
+        if new_turret_lock != current_turret_lock:
+            state["traitor_vote_locked"] = new_turret_lock
+            save_state(state)
+            if new_turret_lock:
+                st.warning("🔒 Traitors are now locked out of making nominations or murder decrees!")
+            else:
+                st.success("🔓 Traitor Turret unlocked.")
+            st.rerun()
+        st.markdown("---")
+
+        # --- RESURRECTION TOOL (MAKES THEM UNDEAD) ---
+        st.subheader("✨ Resurrect a Fallen Player (Make Undead)")
+        st.caption("Select any eliminated (Murdered or Banished) player to bring them back as **Undead** in the Castle.")
+        
+        dead_players = [n for n, d in state["players"].items() if str(d.get("status", "")) not in ["Alive", "Undead"]]
+        if dead_players:
+            resurrect_target = st.selectbox("Select Fallen Player to Resurrect:", dead_players, key="resurrect_select")
+            if st.button("✨ Raise from the Dead (Undead)"):
+                state["players"][resurrect_target]["status"] = "Undead"
+                state["players"][resurrect_target]["eliminated_day"] = ""
+                save_state(state)
+                st.balloons()
+                st.success(f"👻 **{resurrect_target}** has risen as **Undead** and returned to the Castle!")
+                st.rerun()
+        else:
+            st.info("No dead players available to resurrect.")
+        st.markdown("---")
         
         # --- HOST VAULT X-RAY INSPECTOR & CONTROLS ---
         st.subheader("🔍 Host Vault X-Ray Inspector & Controls")
@@ -939,7 +1006,7 @@ elif nav == "👑 Host Control (Neilio)":
         
         col_vault_btn1, col_vault_btn2 = st.columns(2)
         if col_vault_btn1.button("🎲 Re-shuffle & Randomize Today's Vault"):
-            alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "Alive")) == "Alive")
+            alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
             tot_b = alive_c * 3
             state["vault_contents"][day_key] = initialize_vault_boxes(day_key, tot_b, state["vault_config"])
             save_state(state)
@@ -1101,7 +1168,7 @@ elif nav == "👑 Host Control (Neilio)":
         st.divider()
 
         col_rt, col_fp = st.columns(2)
-        alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) == "Alive"]
+        alive_players = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
 
         with col_rt:
             st.subheader(f"2A. Asynchronous Ballot Tally ({day_key})")
@@ -1226,7 +1293,7 @@ elif nav == "👑 Host Control (Neilio)":
             pd.DataFrame(roster_rows),
             column_config={
                 "Role": st.column_config.SelectboxColumn("Role", options=["Faithful", "Traitor", "Recruited Traitor"]),
-                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Banished", "Murdered"]),
+                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Undead", "Banished", "Murdered"]),
             },
             use_container_width=True,
             hide_index=True
