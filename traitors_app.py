@@ -344,7 +344,6 @@ def compute_superlatives(state):
         for voter, vdata in d_votes.items():
             target = vdata["target"]
             if target in votes_against:
-            voted_for = day_votes[name]["target"]
                 votes_against[target] += 1
             if voter in detective_scores and target in all_traitors:
                 detective_scores[voter] += 1
@@ -365,7 +364,6 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     
     shields_to_assign = min(config.get("shields_count", 2), total_boxes)
     
-    # Fetch host custom cursed boxes configuration if available for this day
     day_curse_data = state.get("custom_curses", {}).get(day_k, {"boxes": [], "items": []})
     host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])]
     host_curse_items = day_curse_data.get("items", [])
@@ -380,7 +378,6 @@ def initialize_vault_boxes(day_k, total_boxes, config):
         if i < shields_to_assign:
             boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
         elif b_num in host_cursed_box_nums and host_curse_items:
-            # Assign specific host-configured curse item
             c_item = host_curse_items[curse_item_idx % len(host_curse_items)]
             curse_item_idx += 1
             boxes[b_num] = {
@@ -392,7 +389,6 @@ def initialize_vault_boxes(day_k, total_boxes, config):
                 "opened_by": ""
             }
         else:
-            # Assign points or relics
             if i % 2 == 0:
                 pts = config.get("prize_points_value", 25)
                 boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Group Prize Points added!", "opened": False, "opened_by": ""}
@@ -415,7 +411,6 @@ def render_player_portal_view(selected_player):
 
     st.divider()
 
-    # --- PERSONAL CLAIM HISTORY ---
     with st.expander("📦 My Claimed Vault Items & Winnings History", expanded=True):
         claimed_list = p_info.get("claimed_items", [])
         if claimed_list:
@@ -534,7 +529,6 @@ def render_player_portal_view(selected_player):
     else:
         st.markdown(f"**Active Wall:** `{total_boxes}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
         
-        # Display persistent banner if player recently opened a box
         recent_open = state.get("vault_recent_open", {}).get(selected_player)
         if recent_open and recent_open.get("day") == day_key:
             if recent_open["type"] in ["Shield", "Points"]:
@@ -592,7 +586,6 @@ def render_player_portal_view(selected_player):
                                     }
                                     state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
                                     
-                                    # Save recent open banner info
                                     state.setdefault("vault_recent_open", {})[selected_player] = {
                                         "day": day_key,
                                         "box": b_key,
@@ -600,7 +593,6 @@ def render_player_portal_view(selected_player):
                                         "desc": b_data["desc"]
                                     }
                                     
-                                    # Evaluate Curse effects if opened
                                     if b_data["type"] == "Shield":
                                         state["players"][selected_player]["shield"] = True
                                     elif b_data["type"] == "Points":
@@ -611,11 +603,9 @@ def render_player_portal_view(selected_player):
                                         target_role = b_data.get("target_role", "All")
                                         is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
                                         
-                                        # Check if trap is specifically for traitors and if player is a traitor
                                         if target_role == "Traitor" and not is_traitor:
                                             b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
                                         else:
-                                            # Apply penalty based on toxicity
                                             if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
                                                 state["players"][selected_player]["status"] = "Murdered"
                                                 state["players"][selected_player]["eliminated_day"] = day_key
@@ -623,7 +613,7 @@ def render_player_portal_view(selected_player):
                                                 state["prize_pot"] = max(0, state["prize_pot"] - 100)
                                             elif toxicity == "Moderately Toxic":
                                                 state["prize_pot"] = max(0, state["prize_pot"] - 50)
-                                            else: # Less Toxic
+                                            else: 
                                                 state["prize_pot"] = max(0, state["prize_pot"] - 25)
 
                                     save_state(state)
@@ -730,7 +720,6 @@ if nav == "🏰 Castle Hall (Public)":
     st.title("🏰 The Great Hall of Shadows")
     st.info(f"📢 **DECREE FROM HOST NEILIO:** {state['headline']}")
 
-    # Play atmospheric door creak on castle hall load
     st.markdown(
         '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
         unsafe_allow_html=True
@@ -744,7 +733,6 @@ if nav == "🏰 Castle Hall (Public)":
     with st.expander("📜 Today's Daily Mission / Asynchronous Rules", expanded=True):
         st.markdown(state["mission_text"])
 
-    # --- ANONYMOUS VAULT PRIZE LEDGER (RETROACTIVE SUMMARY) ---
     with st.expander("🏦 Safety Deposit Vault: Claimed Prizes Ledger", expanded=False):
         st.markdown("Here is the anonymous ledger of all prizes claimed from the Safety Deposit Boxes across all days:")
         any_claims = False
@@ -824,7 +812,6 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
         else:
             st.success(f"Welcome back to the shadows, **{selected_player}**.")
             
-            # --- UPLOAD PROFILE PHOTO SECTION ---
             with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
                 uploaded_file = st.file_uploader("Choose a photo of yourself (JPEG/PNG)", type=["jpg", "jpeg", "png"])
                 if uploaded_file is not None:
@@ -999,7 +986,6 @@ elif nav == "👑 Host Control (Neilio)":
     if admin_pin == HOST_PIN:
         st.success("Sanctuary unlocked. Welcome back, High Host Neilio.")
         
-        # --- HOST GOD-MODE VIEW (FAITHFUL, TRAITOR & TURRET ACCESS) ---
         st.markdown("---")
         st.subheader("👁️ Host All-Seeing Eye: Faithful, Traitor & Turret Access")
         st.caption("Select any player below to preview their exact portal view (Faithful or Traitor) and access the Turret with the exact same view and controls as the Traitors.")
@@ -1009,7 +995,6 @@ elif nav == "👑 Host Control (Neilio)":
             render_player_portal_view(god_mode_player)
         st.markdown("---")
         
-        # --- VAULT ROOM OPEN/CLOSE TOGGLE ---
         st.subheader("🏦 Safety Deposit Vault Room Access Control")
         vault_room_status = state.get("vault_room_open", True)
         new_vault_room_status = st.toggle("🔓 Safety Deposit Vault Room Open to Players", value=vault_room_status)
@@ -1072,7 +1057,6 @@ elif nav == "👑 Host Control (Neilio)":
                 day_curse_config["boxes"] = parsed_boxes
                 day_curse_config["items"] = updated_items
                 save_state(state)
-                # Force re-initialize today's vault if active
                 if curse_day_sel == day_key and day_key in state["vault_contents"]:
                     alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
                     state["vault_contents"][day_key] = initialize_vault_boxes(day_key, alive_c * 3, state["vault_config"])
@@ -1082,7 +1066,6 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.markdown("---")
 
-        # --- GROUP PRIZE POT REALLOCATION ---
         st.subheader("💰 Group Prize Pot & Point Reallocation")
         st.caption("Transfer individual player point hoards back into the centralized group prize pool.")
         col_r1, col_r2 = st.columns(2)
@@ -1101,7 +1084,6 @@ elif nav == "👑 Host Control (Neilio)":
                 st.rerun()
         st.markdown("---")
 
-        # --- VOTING MATRIX ACCESS CONTROL TOGGLE ---
         st.subheader("📊 Voting Matrix Access Control")
         current_matrix_status = state.get("voting_matrix_unlocked", False)
         new_matrix_status = st.toggle("🔓 Unlock Voting Matrix for Players", value=current_matrix_status)
@@ -1116,7 +1098,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
         st.markdown("---")
 
-        # --- TRAITOR VOTE LOCK CONTROL ---
         st.subheader("🔒 Traitor Turret Lock Control")
         current_turret_lock = state.get("traitor_vote_locked", False)
         new_turret_lock = st.toggle("🔒 Lock Traitor Voting & Murder Decrees", value=current_turret_lock)
@@ -1131,7 +1112,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
         st.markdown("---")
 
-        # --- RESURRECTION TOOL (MAKES THEM UNDEAD) ---
         st.subheader("✨ Resurrect a Fallen Player (Make Undead)")
         st.caption("Select any eliminated (Murdered or Banished) player to bring them back as **Undead** in the Castle.")
         
@@ -1149,7 +1129,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.info("No dead players available to resurrect.")
         st.markdown("---")
         
-        # --- HOST VAULT X-RAY INSPECTOR & CONTROLS ---
         st.subheader("🔍 Host Vault X-Ray Inspector & Controls")
         st.caption("Inspect the contents of all Safety Deposit Boxes for today without opening them, re-shuffle them, or reset opened boxes.")
         
@@ -1170,7 +1149,7 @@ elif nav == "👑 Host Control (Neilio)":
             if day_key in state["vault_riddle_solved"]:
                 del state["vault_riddle_solved"][day_key]
             for p_dat in state["players"].values():
-                p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day") != day_key]
+                p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day"] != day_key]
             if "vault_recent_open" in state:
                 state["vault_recent_open"] = {}
             save_state(state)
@@ -1194,7 +1173,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.info("Vault boxes for today have not been initialized yet.")
         st.markdown("---")
         
-        # --- HOST PURGE PLAYER TOOL ---
         st.subheader("🧹 Purge Accidental Player")
         st.caption("Select any accidental or duplicate player below and click to instantly banish and delete them from the Castle roster.")
         purge_target = st.selectbox("Select Player to Purge:", list(state["players"].keys()), key="purge_player_select")
@@ -1209,7 +1187,6 @@ elif nav == "👑 Host Control (Neilio)":
                 st.rerun()
         st.markdown("---")
 
-        # --- HOST SANDBOX: BYPASS RIDDLE FOR TESTING ---
         st.subheader("🧪 Host Sandbox: Instant Riddle Bypass")
         st.caption("Select a player below and click to instantly solve today's riddle for them so you can test opening deposit boxes immediately.")
         sandbox_player = st.selectbox("Select Test Player:", list(state["players"].keys()), key="sandbox_player_select")
@@ -1229,7 +1206,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
         st.markdown("---")
         
-        # --- THE MASTER TREACHERY SWITCH ---
         st.subheader("⚔️ Master Game Launch Control")
         col_launch1, col_launch2 = st.columns([2, 1])
         with col_launch1:
@@ -1272,7 +1248,6 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.divider()
 
-        # --- HOST VAULT CONFIGURATOR (SHIELDS, POINTS & CASTLE RELICS) ---
         st.subheader("6. 🏆 Safety Deposit Box Contents & Prize Config")
         st.caption("Configure how many shields, how many prize points, and what non-prize castle relics are randomly distributed among the boxes.")
         
@@ -1298,7 +1273,6 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.markdown("---")
 
-        # --- HOST RIDDLE EDITOR FOR SAFETY DEPOSIT VAULT ---
         st.subheader("5. 🧩 Daily Safety Deposit Vault & Riddle Settings")
         st.caption("Set the gatekeeper riddle and correct password for each day's safety deposit box challenge.")
         
@@ -1331,7 +1305,6 @@ elif nav == "👑 Host Control (Neilio)":
             if missing_voters:
                 st.warning(f"⏳ **Still awaiting whispers from:** {', '.join(missing_voters)}")
             
-            # --- EMERGENCY VOTE RESET TOOL ---
             with st.expander("🛠️ Emergency Vote Correction"):
                 voted_names = list(day_votes.keys())
                 if voted_names:
@@ -1391,7 +1364,6 @@ elif nav == "👑 Host Control (Neilio)":
                 r = str(state["players"][n].get("role", ""))
                 finale_lines.append(f"• *{n}* : {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
             if surviving_traitors:
-                finale_lines.append(f"\n😈 *THE TRAITORS TRIUMPH!* *{', '.join(surviving_traitors)}* deceived the Castle and seized the entire *{state['prize_pot']} pt* Prize Pot!")
             else:
                 finale_lines.append(f"\n🕯️ *THE FAITHFULS PREVAIL!* All Traitors were purged, and *{', '.join(alive_players)}* share the *{state['prize_pot']} pt* Prize Pot!")
             finale_lines.append(f"\n🏅 *CASTLE HONOURS:*\n• 🕵️ Chief Detective: *{best_detective[0]}* ({best_detective[1]} Traitor targets)\n• 🐐 Ultimate Scapegoat: *{scapegoat[0]}* ({scapegoat[1]} votes endured)\n• 🎭 Master of the Shadows: *{stealth_traitor[0]}* ({stealth_traitor[1]} votes against)")
@@ -1403,7 +1375,6 @@ elif nav == "👑 Host Control (Neilio)":
         st.subheader("3. Manage Players, Roles, Shields & Finale Banishments")
         st.caption("Tip: Use the quick Traitor Crown selector below to instantly assign your secret Traitors, or edit the table directly.")
 
-        # --- QUICK TRAITOR CROWN SELECTOR ---
         all_player_names = list(state["players"].keys())
         current_traitors = [name for name, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
         
