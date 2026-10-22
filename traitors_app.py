@@ -219,6 +219,7 @@ def get_default_state():
         "vault_room_open": True,
         "voting_matrix_unlocked": False,
         "traitor_vote_locked": False,
+        "chamber_of_relics_locked": True,
         "headline": "Welcome to Neilio's Castle! The 24-hour asynchronous window is open. Check your role and vote whenever you have a break.",
         "mission_text": "🏆 **MISSION 1: TWO TRUTHS & AN ALIBI**\nPost two true facts and one lie in the WhatsApp chat over the next 24 hours!",
         "players": default_players,
@@ -229,7 +230,7 @@ def get_default_state():
         "vault_contents": {},
         "vault_attempts": {},
         "vault_riddle_solved": {},
-        "vault_recent_open": {},   
+        "vault_recent_open": {},  
         "custom_curses": {
             "Day 1": {
                 "boxes": ["3", "7", "12", "15", "19"],
@@ -252,6 +253,24 @@ def get_default_state():
             "shields_count": 2,
             "prize_points_value": 25,
             "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
+        },
+        # --- CHAMBER OF RELICS CONFIG ---
+        "relics_vault_contents": {},
+        "relics_config": {
+            "riddles": {
+                "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
+                "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
+                "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
+                "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
+                "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
+                "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
+                "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
+                "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
+                "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
+                "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
+                "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
+                "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
+            }
         }
     }
 
@@ -273,6 +292,8 @@ def load_state():
     state.setdefault("vault_room_open", True)
     state.setdefault("voting_matrix_unlocked", False)
     state.setdefault("traitor_vote_locked", False)
+    state.setdefault("chamber_of_relics_locked", True)
+    state.setdefault("relics_vault_contents", {})
     state.setdefault("custom_curses", {
         "Day 1": {
             "boxes": ["3", "7", "12", "15", "19"],
@@ -295,6 +316,22 @@ def load_state():
         "shields_count": 2,
         "prize_points_value": 25,
         "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
+    })
+    state.setdefault("relics_config", {
+        "riddles": {
+            "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
+            "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
+            "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
+            "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
+            "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
+            "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
+            "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
+            "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
+            "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
+            "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
+            "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
+            "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
+        }
     })
     for p in state.get("players", {}).values():
         p["role"] = str(p.get("role", "Faithful"))
@@ -398,6 +435,20 @@ def initialize_vault_boxes(day_k, total_boxes, config):
             
     return boxes
 
+def initialize_relics_boxes():
+    boxes = {}
+    riddles_dict = state["relics_config"]["riddles"]
+    box_keys = list(riddles_dict.keys())
+    for b_key in box_keys:
+        r_info = riddles_dict[b_key]
+        boxes[b_key] = {
+            "name": r_info["name"],
+            "clue": r_info["clue"],
+            "opened": False,
+            "opened_by": ""
+        }
+    return boxes
+
 def render_player_portal_view(selected_player):
     p_info = state["players"][selected_player]
     role = str(p_info.get("role", "Faithful"))
@@ -416,9 +467,9 @@ def render_player_portal_view(selected_player):
         if claimed_list:
             st.write("Here is the official record of everything your character has unlocked and won:")
             for item in claimed_list:
-                st.write(f"• **{item['time']}** ({item['day']}) — Box #{item['box']}: {item['desc']}")
+                st.write(f"• **{item['time']}** ({item['day']}) — {item['box']}: {item['desc']}")
         else:
-            st.info("You haven't opened any Safety Deposit Boxes yet today. Solve the riddle below to begin!")
+            st.info("You haven't opened any Safety Deposit Boxes or Relic Chambers yet today.")
 
     st.divider()
 
@@ -580,7 +631,7 @@ def render_player_portal_view(selected_player):
                                     
                                     claim_record = {
                                         "day": day_key,
-                                        "box": b_key,
+                                        "box": f"Box #{b_key}",
                                         "desc": b_data["desc"],
                                         "time": datetime.now().strftime("%H:%M")
                                     }
@@ -707,6 +758,7 @@ st.sidebar.divider()
 nav_options = [
     "🏰 Castle Hall (Public)",
     "🗳️ Player Portal (Vote & Role)",
+    "💍 Chamber of Relics",
     "📊 The Voting Matrix",
     "🏆 The Grand Reveal (4PM Finale)",
     "👑 Host Control (Neilio)"
@@ -827,7 +879,101 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
             render_player_portal_view(selected_player)
 
 # ==========================================
-# TAB 3: VOTING MATRIX
+# TAB 3: CHAMBER OF RELICS
+# ==========================================
+elif nav == "💍 Chamber of Relics":
+    st.title("💍 The Alchemist's Chamber of Relics")
+    
+    if state.get("chamber_of_relics_locked", True):
+        st.warning("🔒 **THE CHAMBER OF RELICS IS SEALED!**")
+        st.markdown(
+            "> *\"Rely not on mere whispers, traveler. Behind these iron doors lie ancient rings, cursed amulets, "
+            "and forgotten relics. The gatekeeper's lock remains firmly barred until High Host Neilio decrees the opening.\"*"
+        )
+    else:
+        st.markdown(
+            "🕯️⛓️ *Beyond the heavy iron gates lies the Chamber of Relics. "
+            "Velvet shelves hold ancient treasures that can bend the course of our fate: bands of unyielding iron "
+            "that compel the truth, and spiked crests fashioned to turn away blades in the dark. Test your wits against the riddles within...*"
+        )
+        
+        col_p_sel, col_p_pin = st.columns(2)
+        r_player = col_p_sel.selectbox("Select Your Name for Relic Claim", list(state["players"].keys()), key="relic_player_sel")
+        r_pin = col_p_pin.text_input("Enter Your 4-Digit PIN", type="password", key="relic_pin_sel")
+        
+        if r_pin:
+            p_dat = state["players"][r_player]
+            if r_pin != str(p_dat.get("pin", "")):
+                st.error("❌ Incorrect PIN.")
+            elif str(p_dat.get("status", "")) not in ["Alive", "Undead"]:
+                st.warning("👻 Ghosts cannot claim items from the Chamber of Relics!")
+            else:
+                st.success(f"Authenticated as **{r_player}**.")
+                
+                relics_contents = state["relics_vault_contents"]
+                if not relics_contents:
+                    state["relics_vault_contents"] = initialize_relics_boxes()
+                    save_state(state)
+                    relics_contents = state["relics_vault_contents"]
+                
+                solved_dict = state.setdefault("relics_riddle_solved", {}).setdefault(r_player, {})
+                
+                box_keys = sorted(relics_contents.keys(), key=lambda x: int(x.replace("Box ", "")))
+                cols_per_row = 3
+                for i in range(0, len(box_keys), cols_per_row):
+                    row_keys = box_keys[i:i + cols_per_row]
+                    cols = st.columns(cols_per_row)
+                    for idx, b_key in enumerate(row_keys):
+                        b_info = relics_contents[b_key]
+                        with cols[idx]:
+                            if b_info["opened"]:
+                                st.markdown(f"""
+                                <div class="player-card" style="opacity: 0.7;">
+                                    <div style="font-weight: bold; color: #5c1d1d;">{b_key} (Claimed)</div>
+                                    <div style="font-size: 13px; margin-top: 4px;">{b_info['name']}</div>
+                                    <div style="font-size: 11px; color: #7a756b; margin-top: 2px;">By: {b_info['opened_by']}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                with st.container(border=True):
+                                    st.markdown(f"**{b_key}**")
+                                    st.markdown(f"> *\"{b_info['clue']}\"*")
+                                    
+                                    has_solved = solved_dict.get(b_key, False)
+                                    if not has_solved:
+                                        with st.form(f"solve_form_{r_player}_{b_key}"):
+                                            ans_input = st.text_input("Name the Relic / Keyword:", key=f"ans_{r_player}_{b_key}")
+                                            sub_ans = st.form_submit_button("Test the Lock 🗝️")
+                                            if sub_ans:
+                                                clean_input = ans_input.strip().lower()
+                                                correct_answers = [a.strip() for a in state["relics_config"]["riddles"][b_key]["answer"].split(",")]
+                                                if any(c in clean_input for c in correct_answers):
+                                                    solved_dict[b_key] = True
+                                                    save_state(state)
+                                                    st.success("🔓 The lock clicks open!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error("❌ The lock remains bolted shut.")
+                                    else:
+                                        st.success("🔓 Riddle Solved!")
+                                        if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
+                                            b_info["opened"] = True
+                                            b_info["opened_by"] = r_player
+                                            
+                                            claim_rec = {
+                                                "day": "Chamber of Relics",
+                                                "box": b_key,
+                                                "desc": b_info['name'],
+                                                "time": datetime.now().strftime("%H:%M")
+                                            }
+                                            p_dat.setdefault("claimed_items", []).append(claim_rec)
+                                            save_state(state)
+                                            st.balloons()
+                                            st.success(f"🎉 You have claimed **{b_info['name']}**!")
+                                            st.rerun()
+
+# ==========================================
+# TAB 4: VOTING MATRIX
 # ==========================================
 elif nav == "📊 The Voting Matrix":
     st.title("📊 The Castle Archives: Voting Matrix")
@@ -875,7 +1021,7 @@ elif nav == "📊 The Voting Matrix":
         st.dataframe(df_matrix, use_container_width=True, hide_index=True)
 
 # ==========================================
-# TAB 4: THE GRAND REVEAL (FINALE)
+# TAB 5: THE GRAND REVEAL (FINALE)
 # ==========================================
 elif nav == "🏆 The Grand Reveal (4PM Finale)":
     st.title("🏆 The Grand Finale & Ultimate Reveal")
@@ -977,7 +1123,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
         """, unsafe_allow_html=True)
 
 # ==========================================
-# TAB 5: HOST CONTROL CENTRE
+# TAB 6: HOST CONTROL CENTRE
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
@@ -988,11 +1134,24 @@ elif nav == "👑 Host Control (Neilio)":
         
         st.markdown("---")
         st.subheader("👁️ Host All-Seeing Eye: Faithful, Traitor & Turret Access")
-        st.caption("Select any player below to preview their exact portal view (Faithful or Traitor) and access the Turret with the exact same view and controls as the Traitors.")
-        
         god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
         with st.expander(f"🔮 Active Viewport Preview: {god_mode_player}", expanded=True):
             render_player_portal_view(god_mode_player)
+        st.markdown("---")
+        
+        # --- CHAMBER OF RELICS ACCESS CONTROL ---
+        st.subheader("💍 Chamber of Relics Lock Control")
+        current_relics_lock = state.get("chamber_of_relics_locked", True)
+        new_relics_lock = st.toggle("🔒 Seal Chamber of Relics from Players", value=current_relics_lock)
+        
+        if new_relics_lock != current_relics_lock:
+            state["chamber_of_relics_locked"] = new_relics_lock
+            save_state(state)
+            if new_relics_lock:
+                st.warning("🔒 Chamber of Relics is now locked from public view.")
+            else:
+                st.success("🔓 Chamber of Relics unlocked for players!")
+            st.rerun()
         st.markdown("---")
         
         st.subheader("🏦 Safety Deposit Vault Room Access Control")
@@ -1010,8 +1169,6 @@ elif nav == "👑 Host Control (Neilio)":
 
         # --- HOST CURSE & TRAP MATRIX ---
         st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
-        st.caption("Configure the 5 cursed safety deposit box numbers and their toxicity levels for the currently selected day.")
-        
         curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
         day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
             "boxes": ["3", "7", "12", "15", "19"],
@@ -1067,7 +1224,6 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
 
         st.subheader("💰 Group Prize Pot & Point Reallocation")
-        st.caption("Transfer individual player point hoards back into the centralized group prize pool.")
         col_r1, col_r2 = st.columns(2)
         reallocate_player = col_r1.selectbox("Select Player to Seize Points From:", list(state["players"].keys()), key="reallocate_p_sel")
         seize_amount = col_r2.number_input("Points to Transfer to Group Pot:", min_value=0, value=50, step=10)
@@ -1113,8 +1269,6 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
 
         st.subheader("✨ Resurrect a Fallen Player (Make Undead)")
-        st.caption("Select any eliminated (Murdered or Banished) player to bring them back as **Undead** in the Castle.")
-        
         dead_players = [n for n, d in state["players"].items() if str(d.get("status", "")) not in ["Alive", "Undead"]]
         if dead_players:
             resurrect_target = st.selectbox("Select Fallen Player to Resurrect:", dead_players, key="resurrect_select")
@@ -1129,98 +1283,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.info("No dead players available to resurrect.")
         st.markdown("---")
         
-        st.subheader("🔍 Host Vault X-Ray Inspector & Controls")
-        st.caption("Inspect the contents of all Safety Deposit Boxes for today without opening them, re-shuffle them, or reset opened boxes.")
-        
-        col_vault_btn1, col_vault_btn2 = st.columns(2)
-        if col_vault_btn1.button("🎲 Re-shuffle & Randomize Today's Vault"):
-            alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-            tot_b = alive_c * 3
-            state["vault_contents"][day_key] = initialize_vault_boxes(day_key, tot_b, state["vault_config"])
-            save_state(state)
-            st.success("🎲 Vault contents successfully re-shuffled and randomized!")
-            st.rerun()
-
-        if col_vault_btn2.button("🔄 Reset Today's Vault (Clear All Opens & Attempts)"):
-            if day_key in state["vault_contents"]:
-                del state["vault_contents"][day_key]
-            if day_key in state["vault_attempts"]:
-                del state["vault_attempts"][day_key]
-            if day_key in state["vault_riddle_solved"]:
-                del state["vault_riddle_solved"][day_key]
-            for p_dat in state["players"].values():
-                p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day") != day_key]
-            if "vault_recent_open" in state:
-                state["vault_recent_open"] = {}
-            save_state(state)
-            st.warning("⚠️ Today's vault has been completely reset! All boxes are closed and attempts cleared.")
-            st.rerun()
-
-        current_vault_xray = state.get("vault_contents", {}).get(day_key, {})
-        if current_vault_xray:
-            xray_rows = []
-            for b_num, b_dat in sorted(current_vault_xray.items(), key=lambda x: int(x[0])):
-                xray_rows.append({
-                    "Box #": b_num,
-                    "Item Type": b_dat["type"],
-                    "Toxicity": b_dat.get("toxicity", "N/A"),
-                    "Target": b_dat.get("target_role", "N/A"),
-                    "Description": b_dat["desc"],
-                    "Opened?": "Yes (" + b_dat.get("opened_by", "Unknown") + ")" if b_dat["opened"] else "No (Closed)"
-                })
-            st.dataframe(pd.DataFrame(xray_rows), use_container_width=True, hide_index=True)
-        else:
-            st.info("Vault boxes for today have not been initialized yet.")
-        st.markdown("---")
-        
-        st.subheader("🧹 Purge Accidental Player")
-        st.caption("Select any accidental or duplicate player below and click to instantly banish and delete them from the Castle roster.")
-        purge_target = st.selectbox("Select Player to Purge:", list(state["players"].keys()), key="purge_player_select")
-        if st.button("🗑️ Permanently Delete Selected Player"):
-            if len(state["players"]) <= 1:
-                st.error("You cannot delete the last remaining player!")
-            else:
-                if purge_target in state["players"]:
-                    del state["players"][purge_target]
-                save_state(state)
-                st.success(f"✅ **{purge_target}** has been permanently purged from the Castle!")
-                st.rerun()
-        st.markdown("---")
-
-        st.subheader("🧪 Host Sandbox: Instant Riddle Bypass")
-        st.caption("Select a player below and click to instantly solve today's riddle for them so you can test opening deposit boxes immediately.")
-        sandbox_player = st.selectbox("Select Test Player:", list(state["players"].keys()), key="sandbox_player_select")
-        col_bypass1, col_bypass2 = st.columns(2)
-        if col_bypass1.button("🔓 Instant Bypass Riddle for Selected Player"):
-            state["vault_riddle_solved"].setdefault(day_key, {})[sandbox_player] = True
-            save_state(state)
-            st.success(f"✅ Riddle bypassed for **{sandbox_player}**! They now have instant access to open deposit boxes.")
-            st.rerun()
-        if col_bypass2.button("🔄 Reset Today's Vault Attempts for Player"):
-            if day_key in state["vault_attempts"] and sandbox_player in state["vault_attempts"][day_key]:
-                del state["vault_attempts"][day_key][sandbox_player]
-            if day_key in state["vault_riddle_solved"] and sandbox_player in state["vault_riddle_solved"][day_key]:
-                del state["vault_riddle_solved"][day_key][sandbox_player]
-            save_state(state)
-            st.warning(f"⚠️ Vault attempts and riddle status reset for **{sandbox_player}**.")
-            st.rerun()
-        st.markdown("---")
-        
-        st.subheader("⚔️ Master Game Launch Control")
-        col_launch1, col_launch2 = st.columns([2, 1])
-        with col_launch1:
-            st.markdown("Ready to unleash the Traitors? Click this button to officially open Day 1 and broadcast the asynchronous decree to the entire Castle.")
-        with col_launch2:
-            if st.button("🔥 Let the Treachery Begin!", type="primary"):
-                state["current_day"] = 1
-                state["phase"] = "24-Hour Asynchronous Window"
-                state["headline"] = "The Castle gates are officially open... Let the treachery begin!"
-                save_state(state)
-                st.balloons()
-                st.success("🔥 The game is LIVE! The asynchronous window is open.")
-                st.rerun()
-        st.markdown("---")
-
         st.subheader("1. Game Day, Phase & Castle Decrees")
         c1, c2, c3, c4 = st.columns(4)
         new_day = c1.number_input("Current Day (1-12)", min_value=1, max_value=12, value=state["current_day"])
@@ -1248,134 +1310,7 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.divider()
 
-        st.subheader("6. 🏆 Safety Deposit Box Contents & Prize Config")
-        st.caption("Configure how many shields, how many prize points, and what non-prize castle relics are randomly distributed among the boxes.")
-        
-        v_config = state.get("vault_config", {"shields_count": 2, "prize_points_value": 25, "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry, Dusty Tome, Broken Dagger, Empty Urn"})
-        
-        with st.form("host_vault_config_form"):
-            cfg_shields = st.number_input("Max Shields Hidden in Boxes (up to 3):", min_value=0, max_value=3, value=v_config.get("shields_count", 2))
-            cfg_points_val = st.number_input("Prize Points Value per Winning Box:", min_value=5, max_value=200, value=v_config.get("prize_points_value", 25), step=5)
-            cfg_relics = st.text_area("Non-Prize Castle Relics (comma-separated list):", value=v_config.get("relics_list", ""))
-            
-            save_vault_cfg = st.form_submit_button("💾 Save Vault & Prize Configuration")
-            if save_vault_cfg:
-                state["vault_config"] = {
-                    "shields_count": cfg_shields,
-                    "prize_points_value": cfg_points_val,
-                    "relics_list": cfg_relics.strip()
-                }
-                if day_key in state["vault_contents"]:
-                    del state["vault_contents"][day_key]
-                save_state(state)
-                st.success("✅ Vault prize configuration updated successfully!")
-                st.rerun()
-
-        st.markdown("---")
-
-        st.subheader("5. 🧩 Daily Safety Deposit Vault & Riddle Settings")
-        st.caption("Set the gatekeeper riddle and correct password for each day's safety deposit box challenge.")
-        
-        riddle_day_select = st.selectbox("Select Day to Configure Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1)
-        existing_riddle = state["vault_riddles"].get(riddle_day_select, {"question": "", "answer": ""})
-        
-        with st.form("host_riddle_form"):
-            host_riddle_q = st.text_area("Gatekeeper Riddle Question (Markdown supported):", value=existing_riddle["question"])
-            host_riddle_a = st.text_input("Correct Answer / Password (comma separated for multiple):", value=existing_riddle["answer"])
-            save_riddle_btn = st.form_submit_button("💾 Save Riddle for " + riddle_day_select)
-            if save_riddle_btn:
-                state["vault_riddles"].setdefault(riddle_day_select, {})["question"] = host_riddle_q.strip()
-                state["vault_riddles"].setdefault(riddle_day_select, {})["answer"] = host_riddle_a.strip().lower()
-                save_state(state)
-                st.success(f"✅ Riddle successfully updated for {riddle_day_select}!")
-                st.rerun()
-
-        st.divider()
-
-        col_rt, col_fp = st.columns(2)
-        alive_players = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
-
-        with col_rt:
-            st.subheader(f"2A. Asynchronous Ballot Tally ({day_key})")
-            day_votes = state["votes"].get(day_key, {})
-            voted_players = list(day_votes.keys())
-            missing_voters = [n for n in alive_players if n not in voted_players]
-
-            st.write(f"**Ballots Cast:** {len(voted_players)} / {len(alive_players)}")
-            if missing_voters:
-                st.warning(f"⏳ **Still awaiting whispers from:** {', '.join(missing_voters)}")
-            
-            with st.expander("🛠️ Emergency Vote Correction"):
-                voted_names = list(day_votes.keys())
-                if voted_names:
-                    player_to_reset = st.selectbox("Select player to clear vote for:", voted_names, key="reset_vote_select")
-                    if st.button("🗑️ Clear This Player's Vote"):
-                        if player_to_reset in state["votes"].get(day_key, {}):
-                            del state["votes"][day_key][player_to_reset]
-                            save_state(state)
-                            st.success(f"Successfully cleared vote for {player_to_reset}. They can now vote again.")
-                            st.rerun()
-                else:
-                    st.write("No votes cast yet today.")
-
-            if day_votes:
-                tally = {}
-                whatsapp_lines = [f"🕯️ *ASYNCHRONOUS BALLOTS TALLIED ({day_key.upper()})* — *High Host: Neilio* 🕯️\n"]
-                for voter, vdata in day_votes.items():
-                    target = vdata["target"]
-                    tally[target] = tally.get(target, 0) + 1
-                    whatsapp_lines.append(f"• *{voter}* accused *{target}*: _\"{vdata['reason']}\"_")
-                
-                sorted_tally = sorted(tally.items(), key=lambda x: x[1], reverse=True)
-                whatsapp_lines.append("\n📜 *BALLOT TALLY:*")
-                for cand, count in sorted_tally:
-                    whatsapp_lines.append(f"• *{cand}* : {count} vote(s)")
-                
-                top_candidate = sorted_tally[0][0]
-                if state["current_day"] >= 10:
-                    whatsapp_lines.append(f"\n🔴 With the heaviest burden of votes, *{top_candidate}* is banished by High Host Neilio. In the Endgame, true identities remain locked away...")
-                else:
-                    whatsapp_lines.append(f"\n🔴 With the heaviest burden of votes, *{top_candidate}* is banished by High Host Neilio. Step forward into the light and reveal your true identity...")
-
-                st.code("\n".join(whatsapp_lines), language="markdown")
-
-        with col_fp:
-            st.subheader(f"2B. 🔥 Fire Pit & Finale Scripts")
-            fp_votes = state["fire_pit_votes"].get(fp_key, {})
-            if fp_votes:
-                red_count = sum(1 for v in fp_votes.values() if "RED" in v["choice"] or "BANISH" in v["choice"])
-                fp_lines = [f"🔥 *THE FIRE PIT OF TRUTH ({fp_key.upper()})* — *High Host: Neilio* 🔥\n"]
-                for voter, vdata in fp_votes.items():
-                    fp_lines.append(f"• *{voter}* cast *{vdata['choice']}*: _\"{vdata['reason']}\"_")
-                
-                if red_count > 0:
-                    fp_lines.append(f"\n🔴 *THE FLAMES BURN CRIMSON RED!* ({red_count} vote(s) to Banish Again).")
-                    fp_lines.append("The end is not yet written! High Host Neilio demands an immediate return to the Round Table.")
-                else:
-                    fp_lines.append("\n🟢 *THE FLAMES BURN UNANIMOUSLY GOLDEN GREEN!*")
-                    fp_lines.append("The reckoning has arrived. High Host Neilio has shattered the seals on the 4PM Grand Reveal screen!")
-                st.code("\n".join(fp_lines), language="markdown")
-
-            surviving_traitors = [n for n in alive_players if "Traitor" in str(state["players"][n].get("role", ""))]
-            best_detective, scapegoat, stealth_traitor = compute_superlatives(state)
-            finale_lines = ["🏆 *THE GRAND FINALE REVEAL* — *High Host: Neilio* 🏆\n"]
-            finale_lines.append("The Fire Pit has spoken under Neilio's vigilant eye. Behold the unmasked survivors:")
-            for n in alive_players:
-                r = str(state["players"][n].get("role", ""))
-                finale_lines.append(f"• *{n}* : {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
-            if surviving_traitors:
-                finale_lines.append(f"\n😈 *THE TRAITORS TRIUMPH!* *{', '.join(surviving_traitors)}* deceived the Castle and seized the entire *{state['prize_pot']} pt* Prize Pot!")
-            else:
-                finale_lines.append(f"\n🕯️ *THE FAITHFULS PREVAIL!* All Traitors were purged, and *{', '.join(alive_players)}* share the *{state['prize_pot']} pt* Prize Pot!")
-            finale_lines.append(f"\n🏅 *CASTLE HONOURS:*\n• 🕵️ Chief Detective: *{best_detective[0]}* ({best_detective[1]} Traitor targets)\n• 🐐 Ultimate Scapegoat: *{scapegoat[0]}* ({scapegoat[1]} votes endured)\n• 🎭 Master of the Shadows: *{stealth_traitor[0]}* ({stealth_traitor[1]} votes against)")
-            st.caption("👇 Copy this final WhatsApp scroll:")
-            st.code("\n".join(finale_lines), language="markdown")
-
-        st.divider()
-
         st.subheader("3. Manage Players, Roles, Shields & Finale Banishments")
-        st.caption("Tip: Use the quick Traitor Crown selector below to instantly assign your secret Traitors, or edit the table directly.")
-
         all_player_names = list(state["players"].keys())
         current_traitors = [name for name, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
         
@@ -1396,8 +1331,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
 
         st.markdown("---")
-        st.caption("Detailed Roster Editor:")
-        
         roster_rows = []
         for name, d in state["players"].items():
             roster_rows.append({
@@ -1487,4 +1420,3 @@ elif nav == "👑 Host Control (Neilio)":
                     save_state(restored_state)
                     st.success("✅ Vault restored from file!")
                     st.rerun()
-        
