@@ -366,7 +366,7 @@ def get_public_identity(pdata, force_reveal=False):
             return "❓ Unknown", ""
         if pdata.get("hide_role", False):
             return "🔒 Hidden (Finale)", "role-hidden"
-        if status in ["Undead", "Murdered", "Banished"]:
+        if status in ["Undead", "Murdered", "Banished", "Executed (No Vote Penalty)"]:
             return "🕯️ Faithful", "role-faithful"
     if "Traitor" in role:
         return f"🗡️ {role.upper()}", "role-traitor"
@@ -648,7 +648,7 @@ def render_player_portal_view(selected_player):
                                         state["players"][selected_player]["shield"] = True
                                     elif b_data["type"] == "Points":
                                         pts = b_data["value"]
-                                        state["prize_pot"] += pts  
+                                        state["prize_pot"] += pts 
                                     elif b_data["type"] == "Curse":
                                         toxicity = b_data.get("toxicity", "Moderately Toxic")
                                         target_role = b_data.get("target_role", "All")
@@ -1330,7 +1330,7 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.divider()
 
-        st.subheader("3. Manage Players, Roles, Shields & Finale Banishments")
+        st.subheader("3. Manage Players, Roles, Shields & Banishments")
         all_player_names = list(state["players"].keys())
         current_traitors = [name for name, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
         
@@ -1369,7 +1369,7 @@ elif nav == "👑 Host Control (Neilio)":
             pd.DataFrame(roster_rows),
             column_config={
                 "Role": st.column_config.SelectboxColumn("Role", options=["Faithful", "Traitor", "Recruited Traitor"]),
-                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Undead", "Banished", "Murdered"]),
+                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Undead", "Banished", "Murdered", "Executed (No Vote Penalty)"]),
             },
             use_container_width=True,
             hide_index=True
