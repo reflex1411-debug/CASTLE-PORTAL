@@ -1149,7 +1149,7 @@ elif nav == "👑 Host Control (Neilio)":
             if day_key in state["vault_riddle_solved"]:
                 del state["vault_riddle_solved"][day_key]
             for p_dat in state["players"].values():
-                p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day"] != day_key]
+                p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day") != day_key]
             if "vault_recent_open" in state:
                 state["vault_recent_open"] = {}
             save_state(state)
@@ -1364,6 +1364,7 @@ elif nav == "👑 Host Control (Neilio)":
                 r = str(state["players"][n].get("role", ""))
                 finale_lines.append(f"• *{n}* : {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
             if surviving_traitors:
+                finale_lines.append(f"\n😈 *THE TRAITORS TRIUMPH!* *{', '.join(surviving_traitors)}* deceived the Castle and seized the entire *{state['prize_pot']} pt* Prize Pot!")
             else:
                 finale_lines.append(f"\n🕯️ *THE FAITHFULS PREVAIL!* All Traitors were purged, and *{', '.join(alive_players)}* share the *{state['prize_pot']} pt* Prize Pot!")
             finale_lines.append(f"\n🏅 *CASTLE HONOURS:*\n• 🕵️ Chief Detective: *{best_detective[0]}* ({best_detective[1]} Traitor targets)\n• 🐐 Ultimate Scapegoat: *{scapegoat[0]}* ({scapegoat[1]} votes endured)\n• 🎭 Master of the Shadows: *{stealth_traitor[0]}* ({stealth_traitor[1]} votes against)")
@@ -1486,3 +1487,4 @@ elif nav == "👑 Host Control (Neilio)":
                     save_state(restored_state)
                     st.success("✅ Vault restored from file!")
                     st.rerun()
+        
