@@ -189,7 +189,7 @@ def get_default_state():
             "hide_role": False,
             "photo": "",
             "points": 0,
-            "claimed_items": [] # Tracks personal claims history
+            "claimed_items": []
         }
 
     return {
@@ -345,7 +345,7 @@ def render_player_portal_view(selected_player):
 
     st.divider()
 
-    # --- PERSONAL CLAIM HISTORY (SOLVES PLAYER COMPLAINTS) ---
+    # --- PERSONAL CLAIM HISTORY ---
     with st.expander("📦 My Claimed Vault Items & Winnings History", expanded=True):
         claimed_list = p_info.get("claimed_items", [])
         if claimed_list:
@@ -498,7 +498,6 @@ def render_player_portal_view(selected_player):
                                     vault_contents[b_key]["opened_by"] = selected_player
                                     state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
                                     
-                                    # Record claim history for player verification
                                     claim_record = {
                                         "day": day_key,
                                         "box": b_key,
@@ -508,7 +507,6 @@ def render_player_portal_view(selected_player):
                                     state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
                                     save_state(state)
                                     
-                                    # Audio and visual feedback
                                     if b_data["type"] == "Shield":
                                         state["players"][selected_player]["shield"] = True
                                         save_state(state)
@@ -896,6 +894,24 @@ elif nav == "👑 Host Control (Neilio)":
         god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
         with st.expander(f"🔮 Active Viewport Preview: {god_mode_player}", expanded=True):
             render_player_portal_view(god_mode_player)
+        st.markdown("---")
+        
+        # --- HOST VAULT X-RAY INSPECTOR ---
+        st.subheader("🔍 Host Vault X-Ray Inspection")
+        st.caption("Inspect the contents of all Safety Deposit Boxes for today without opening them.")
+        current_vault_xray = state.get("vault_contents", {}).get(day_key, {})
+        if current_vault_xray:
+            xray_rows = []
+            for b_num, b_dat in sorted(current_vault_xray.items(), key=lambda x: int(x[0])):
+                xray_rows.append({
+                    "Box #": b_num,
+                    "Item Type": b_dat["type"],
+                    "Description": b_dat["desc"],
+                    "Opened?": "Yes (" + b_dat.get("opened_by", "Unknown") + ")" if b_dat["opened"] else "No (Closed)"
+                })
+            st.dataframe(pd.DataFrame(xray_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("Vault boxes for today have not been initialized yet.")
         st.markdown("---")
         
         # --- HOST PURGE PLAYER TOOL ---
