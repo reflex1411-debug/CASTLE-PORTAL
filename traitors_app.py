@@ -1223,6 +1223,26 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.markdown("---")
 
+        # --- HOST RIDDLE EDITOR FOR SAFETY DEPOSIT VAULT ---
+        st.subheader("5. 🧩 Daily Safety Deposit Vault & Riddle Settings")
+        st.caption("Set the gatekeeper riddle and correct password for each day's safety deposit box challenge.")
+        
+        riddle_day_select = st.selectbox("Select Day to Configure Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="riddle_day_sel_host")
+        existing_riddle = state["vault_riddles"].get(riddle_day_select, {"question": "", "answer": ""})
+        
+        with st.form("host_riddle_form"):
+            host_riddle_q = st.text_area("Gatekeeper Riddle Question (Markdown supported):", value=existing_riddle.get("question", ""))
+            host_riddle_a = st.text_input("Correct Answer / Password (comma separated for multiple):", value=existing_riddle.get("answer", ""))
+            save_riddle_btn = st.form_submit_button("💾 Save Riddle for " + riddle_day_select)
+            if save_riddle_btn:
+                state["vault_riddles"].setdefault(riddle_day_select, {})["question"] = host_riddle_q.strip()
+                state["vault_riddles"].setdefault(riddle_day_select, {})["answer"] = host_riddle_a.strip().lower()
+                save_state(state)
+                st.success(f"✅ Riddle successfully updated for {riddle_day_select}!")
+                st.rerun()
+
+        st.divider()
+
         st.subheader("💰 Group Prize Pot & Point Reallocation")
         col_r1, col_r2 = st.columns(2)
         reallocate_player = col_r1.selectbox("Select Player to Seize Points From:", list(state["players"].keys()), key="reallocate_p_sel")
