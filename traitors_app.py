@@ -198,6 +198,7 @@ def get_default_state():
         "phase": "24-Hour Asynchronous Window",
         "prize_pot": 100,
         "traitor_pot": 0,
+        "voting_matrix_unlocked": False,
         "headline": "Welcome to Neilio's Castle! The 24-hour asynchronous window is open. Check your role and vote whenever you have a break.",
         "mission_text": "🏆 **MISSION 1: TWO TRUTHS & AN ALIBI**\nPost two true facts and one lie in the WhatsApp chat over the next 24 hours!",
         "players": default_players,
@@ -237,6 +238,7 @@ def load_state():
     state.setdefault("vault_attempts", {})
     state.setdefault("vault_riddle_solved", {})
     state.setdefault("vault_recent_open", {})
+    state.setdefault("voting_matrix_unlocked", False)
     state.setdefault("vault_riddles", {
         "Day 1": {
             "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
@@ -752,42 +754,47 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
 # ==========================================
 elif nav == "📊 The Voting Matrix":
     st.title("📊 The Castle Archives: Voting Matrix")
-    st.caption("Every asynchronous ballot cast since day one. Votes against exposed Traitors are marked with 🎯.")
+    
+    if not state.get("voting_matrix_unlocked", False):
+        st.warning("🔒 **THE CASTLE ARCHIVES ARE SEALED!**")
+        st.info("High Host Neilio has locked the Voting Matrix. The archives will be unveiled to the public once voting has concluded.")
+    else:
+        st.caption("Every asynchronous ballot cast since day one. Votes against exposed Traitors are marked with 🎯.")
 
-    known_traitors = {
-        name for name, d in state["players"].items()
-        if "Traitor" in str(d.get("role", "")) and (is_finale_unlocked or (str(d.get("status", "")) == "Banished" and not d.get("hide_role", False)))
-    }
-
-    all_days = sorted(state["votes"].keys(), key=lambda x: int(x.split(" ")[1]))
-    rows = []
-    for name, pdata in state["players"].items():
-        status = str(pdata.get("status", "Alive"))
-        identity, _ = get_public_identity(pdata, force_reveal=is_finale_unlocked)
-
-        row = {
-            "Player": name,
-            "Status": f"🟢 Alive" if status == "Alive" else f"{'💀' if status=='Murdered' else '🔴'} {status} ({pdata.get('eliminated_day', '')})",
-            "Revealed Identity": identity,
-            "Points": pdata.get("points", 0)
+        known_traitors = {
+            name for name, d in state["players"].items()
+            if "Traitor" in str(d.get("role", "")) and (is_finale_unlocked or (str(d.get("status", "")) == "Banished" and not d.get("hide_role", False)))
         }
-        
-        total_votes_received = 0
-        for d in all_days:
-            day_votes = state["votes"].get(d, {})
-            total_votes_received += sum(1 for v in day_votes.values() if v["target"] == name)
-            
-            if name in day_votes:
-                voted_for = day_votes[name]["target"]
-                row[d] = f"🎯 {voted_for}" if voted_for in known_traitors else voted_for
-            else:
-                row[d] = "—"
-        
-        row["Total Votes Against"] = total_votes_received
-        rows.append(row)
 
-    df_matrix = pd.DataFrame(rows)
-    st.dataframe(df_matrix, use_container_width=True, hide_index=True)
+        all_days = sorted(state["votes"].keys(), key=lambda x: int(x.split(" ")[1]))
+        rows = []
+        for name, pdata in state["players"].items():
+            status = str(pdata.get("status", "Alive"))
+            identity, _ = get_public_identity(pdata, force_reveal=is_finale_unlocked)
+
+            row = {
+                "Player": name,
+                "Status": f"🟢 Alive" if status == "Alive" else f"{'💀' if status=='Murdered' else '🔴'} {status} ({pdata.get('eliminated_day', '')})",
+                "Revealed Identity": identity,
+                "Points": pdata.get("points", 0)
+            }
+            
+            total_votes_received = 0
+            for d in all_days:
+                day_votes = state["votes"].get(d, {})
+                total_votes_received += sum(1 for v in day_votes.values() if v["target"] == name)
+                
+                if name in day_votes:
+                    voted_for = day_votes[name]["target"]
+                    row[d] = f"🎯 {voted_for}" if voted_for in known_traitors else voted_for
+                else:
+                    row[d] = "—"
+            
+            row["Total Votes Against"] = total_votes_received
+            rows.append(row)
+
+        df_matrix = pd.DataFrame(rows)
+        st.dataframe(df_matrix, use_container_width=True, hide_index=True)
 
 # ==========================================
 # TAB 4: THE GRAND REVEAL (FINALE)
@@ -909,6 +916,21 @@ elif nav == "👑 Host Control (Neilio)":
         god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
         with st.expander(f"🔮 Active Viewport Preview: {god_mode_player}", expanded=True):
             render_player_portal_view(god_mode_player)
+        st.markdown("---")
+        
+        # --- VOTING MATRIX ACCESS CONTROL TOGGLE ---
+        st.subheader("📊 Voting Matrix Access Control")
+        current_matrix_status = state.get("voting_matrix_unlocked", False)
+        new_matrix_status = st.toggle("🔓 Unlock Voting Matrix for Players", value=current_matrix_status)
+        
+        if new_matrix_status != current_matrix_status:
+            state["voting_matrix_unlocked"] = new_matrix_status
+            save_state(state)
+            if new_matrix_status:
+                st.success("✅ Voting Matrix unlocked! Players can now view the archives.")
+            else:
+                st.warning("🔒 Voting Matrix locked from public view.")
+            st.rerun()
         st.markdown("---")
         
         # --- HOST VAULT X-RAY INSPECTOR & CONTROLS ---
@@ -1149,7 +1171,7 @@ elif nav == "👑 Host Control (Neilio)":
             finale_lines.append("The Fire Pit has spoken under Neilio's vigilant eye. Behold the unmasked survivors:")
             for n in alive_players:
                 r = str(state["players"][n].get("role", ""))
-                finale_lines.append(f"• *{n}*: {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
+                finale_lines.append(f"• *{n}* : {'🗡️ TRAITOR' if 'Traitor' in r else '🕯️ FAITHFUL'}")
             if surviving_traitors:
                 finale_lines.append(f"\n😈 *THE TRAITORS TRIUMPH!* *{', '.join(surviving_traitors)}* deceived the Castle and seized the entire *{state['prize_pot']} pt* Prize Pot!")
             else:
