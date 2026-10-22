@@ -229,7 +229,19 @@ def get_default_state():
         "vault_contents": {},
         "vault_attempts": {},
         "vault_riddle_solved": {},
-        "vault_recent_open": {},   # Stores last opened box result for a player so it stays visible
+        "vault_recent_open": {},   
+        "custom_curses": {
+            "Day 1": {
+                "boxes": ["3", "7", "12", "15", "19"],
+                "items": [
+                    {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                    {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                    {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                    {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                    {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+                ]
+            }
+        },
         "vault_riddles": {
             "Day 1": {
                 "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
@@ -261,6 +273,18 @@ def load_state():
     state.setdefault("vault_room_open", True)
     state.setdefault("voting_matrix_unlocked", False)
     state.setdefault("traitor_vote_locked", False)
+    state.setdefault("custom_curses", {
+        "Day 1": {
+            "boxes": ["3", "7", "12", "15", "19"],
+            "items": [
+                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+            ]
+        }
+    })
     state.setdefault("vault_riddles", {
         "Day 1": {
             "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
@@ -320,6 +344,7 @@ def compute_superlatives(state):
         for voter, vdata in d_votes.items():
             target = vdata["target"]
             if target in votes_against:
+            voted_for = day_votes[name]["target"]
                 votes_against[target] += 1
             if voter in detective_scores and target in all_traitors:
                 detective_scores[voter] += 1
@@ -339,25 +364,41 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     random.shuffle(box_numbers)
     
     shields_to_assign = min(config.get("shields_count", 2), total_boxes)
-    curses_to_assign = min(5, total_boxes - shields_to_assign) # 5 Cursed boxes
-    points_to_assign = max(1, (total_boxes - shields_to_assign - curses_to_assign) // 2)
+    
+    # Fetch host custom cursed boxes configuration if available for this day
+    day_curse_data = state.get("custom_curses", {}).get(day_k, {"boxes": [], "items": []})
+    host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])]
+    host_curse_items = day_curse_data.get("items", [])
     
     relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
     if not relics_pool:
         relics_pool = ["Rusted Iron Key", "Dusty Tome of Spells", "Broken Dagger"]
 
+    curse_item_idx = 0
     for i in range(total_boxes):
         b_num = str(box_numbers[i])
         if i < shields_to_assign:
             boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
-        elif i < shields_to_assign + curses_to_assign:
-            boxes[b_num] = {"type": "Curse", "desc": "💀 CURSED BOX! Traitors tampered with this lock! Group prize pot loses 100 points!", "opened": False, "opened_by": ""}
-        elif i < shields_to_assign + curses_to_assign + points_to_assign:
-            pts = config.get("prize_points_value", 25)
-            boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Group Prize Points added!", "opened": False, "opened_by": ""}
+        elif b_num in host_cursed_box_nums and host_curse_items:
+            # Assign specific host-configured curse item
+            c_item = host_curse_items[curse_item_idx % len(host_curse_items)]
+            curse_item_idx += 1
+            boxes[b_num] = {
+                "type": "Curse", 
+                "toxicity": c_item.get("toxicity", "Moderately Toxic"),
+                "target_role": c_item.get("target", "All"),
+                "desc": f"💀 **{c_item.get('name', 'Cursed Trap')}** ({c_item.get('toxicity', 'Toxic')}): {c_item.get('desc', 'A dark curse strikes!')}", 
+                "opened": False, 
+                "opened_by": ""
+            }
         else:
-            relic = random.choice(relics_pool)
-            boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic} (No effect)", "opened": False, "opened_by": ""}
+            # Assign points or relics
+            if i % 2 == 0:
+                pts = config.get("prize_points_value", 25)
+                boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Group Prize Points added!", "opened": False, "opened_by": ""}
+            else:
+                relic = random.choice(relics_pool)
+                boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic} (No effect)", "opened": False, "opened_by": ""}
             
     return boxes
 
@@ -558,38 +599,34 @@ def render_player_portal_view(selected_player):
                                         "type": b_data["type"],
                                         "desc": b_data["desc"]
                                     }
-                                    save_state(state)
                                     
+                                    # Evaluate Curse effects if opened
                                     if b_data["type"] == "Shield":
                                         state["players"][selected_player]["shield"] = True
-                                        save_state(state)
-                                        st.markdown(
-                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3" type="audio/mp3"></audio>',
-                                            unsafe_allow_html=True
-                                        )
-                                        st.balloons()
                                     elif b_data["type"] == "Points":
                                         pts = b_data["value"]
-                                        state["prize_pot"] += pts  # Adds directly to shared group total
-                                        save_state(state)
-                                        st.markdown(
-                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" type="audio/mp3"></audio>',
-                                            unsafe_allow_html=True
-                                        )
-                                        st.balloons()
+                                        state["prize_pot"] += pts  
                                     elif b_data["type"] == "Curse":
-                                        state["prize_pot"] = max(0, state["prize_pot"] - 100)  # Penalty to group pot
-                                        save_state(state)
-                                        st.markdown(
-                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
-                                            unsafe_allow_html=True
-                                        )
-                                    else:
-                                        save_state(state)
-                                        st.markdown(
-                                            '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
-                                            unsafe_allow_html=True
-                                        )
+                                        toxicity = b_data.get("toxicity", "Moderately Toxic")
+                                        target_role = b_data.get("target_role", "All")
+                                        is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
+                                        
+                                        # Check if trap is specifically for traitors and if player is a traitor
+                                        if target_role == "Traitor" and not is_traitor:
+                                            b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
+                                        else:
+                                            # Apply penalty based on toxicity
+                                            if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
+                                                state["players"][selected_player]["status"] = "Murdered"
+                                                state["players"][selected_player]["eliminated_day"] = day_key
+                                            elif toxicity == "Highly Toxic":
+                                                state["prize_pot"] = max(0, state["prize_pot"] - 100)
+                                            elif toxicity == "Moderately Toxic":
+                                                state["prize_pot"] = max(0, state["prize_pot"] - 50)
+                                            else: # Less Toxic
+                                                state["prize_pot"] = max(0, state["prize_pot"] - 25)
+
+                                    save_state(state)
                                     st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
@@ -986,6 +1023,65 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
         st.markdown("---")
 
+        # --- HOST CURSE & TRAP MATRIX ---
+        st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
+        st.caption("Configure the 5 cursed safety deposit box numbers and their toxicity levels for the currently selected day.")
+        
+        curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
+        day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
+            "boxes": ["3", "7", "12", "15", "19"],
+            "items": [
+                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+            ]
+        })
+
+        with st.form("host_curse_config_form"):
+            st.markdown("### 📦 Elect 5 Cursed Box Numbers")
+            current_boxes_str = ", ".join([str(b) for b in day_curse_config.get("boxes", ["3", "7", "12", "15", "19"])])
+            boxes_input = st.text_input("Enter 5 box numbers separated by commas (e.g. 3, 7, 12, 15, 19):", value=current_boxes_str)
+            
+            st.markdown("### ☠️ Configure 5 Cursed Items (Toxicity & Effects)")
+            updated_items = []
+            
+            toxicity_options = ["Less Toxic", "Moderately Toxic", "Highly Toxic", "Traitor-Lethal", "Instant Death"]
+            target_options = ["All", "Traitor"]
+
+            for idx, c_item in enumerate(day_curse_config.get("items", [])):
+                st.markdown(f"**Curse Item #{idx + 1}**")
+                col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
+                c_name = col_i1.text_input(f"Item Name #{idx+1}", value=c_item.get("name", f"Curse #{idx+1}"), key=f"c_name_{idx}")
+                c_tox = col_i2.selectbox(f"Toxicity #{idx+1}", toxicity_options, index=toxicity_options.index(c_item.get("toxicity", "Moderately Toxic")) if c_item.get("toxicity") in toxicity_options else 0, key=f"c_tox_{idx}")
+                c_tgt = col_i3.selectbox(f"Target #{idx+1}", target_options, index=target_options.index(c_item.get("target", "All")) if c_item.get("target") in target_options else 0, key=f"c_tgt_{idx}")
+                c_desc = st.text_input(f"Description & Consequence #{idx+1}", value=c_item.get("desc", ""), key=f"c_desc_{idx}")
+                st.markdown("---")
+                
+                updated_items.append({
+                    "name": c_name.strip(),
+                    "toxicity": c_tox,
+                    "target": c_tgt,
+                    "desc": c_desc.strip()
+                })
+
+            save_curses_btn = st.form_submit_button("💾 Save Curses & Traps for " + curse_day_sel)
+            if save_curses_btn:
+                parsed_boxes = [b.strip() for b in boxes_input.split(",") if b.strip().isdigit()]
+                day_curse_config["boxes"] = parsed_boxes
+                day_curse_config["items"] = updated_items
+                save_state(state)
+                # Force re-initialize today's vault if active
+                if curse_day_sel == day_key and day_key in state["vault_contents"]:
+                    alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
+                    state["vault_contents"][day_key] = initialize_vault_boxes(day_key, alive_c * 3, state["vault_config"])
+                save_state(state)
+                st.success(f"✅ Successfully updated curses and Traitor traps for {curse_day_sel}!")
+                st.rerun()
+
+        st.markdown("---")
+
         # --- GROUP PRIZE POT REALLOCATION ---
         st.subheader("💰 Group Prize Pot & Point Reallocation")
         st.caption("Transfer individual player point hoards back into the centralized group prize pool.")
@@ -1088,6 +1184,8 @@ elif nav == "👑 Host Control (Neilio)":
                 xray_rows.append({
                     "Box #": b_num,
                     "Item Type": b_dat["type"],
+                    "Toxicity": b_dat.get("toxicity", "N/A"),
+                    "Target": b_dat.get("target_role", "N/A"),
                     "Description": b_dat["desc"],
                     "Opened?": "Yes (" + b_dat.get("opened_by", "Unknown") + ")" if b_dat["opened"] else "No (Closed)"
                 })
