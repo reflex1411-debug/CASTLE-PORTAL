@@ -208,6 +208,7 @@ def get_default_state():
         "vault_contents": {},
         "vault_attempts": {},
         "vault_riddle_solved": {},
+        "vault_recent_open": {},   # Stores last opened box result for a player so it stays visible
         "vault_riddles": {
             "Day 1": {
                 "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
@@ -235,6 +236,7 @@ def load_state():
     state.setdefault("vault_contents", {})
     state.setdefault("vault_attempts", {})
     state.setdefault("vault_riddle_solved", {})
+    state.setdefault("vault_recent_open", {})
     state.setdefault("vault_riddles", {
         "Day 1": {
             "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
@@ -458,6 +460,14 @@ def render_player_portal_view(selected_player):
     else:
         st.markdown(f"**Active Wall:** `{total_boxes}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
         
+        # Display persistent banner if player recently opened a box
+        recent_open = state.get("vault_recent_open", {}).get(selected_player)
+        if recent_open and recent_open.get("day") == day_key:
+            if recent_open["type"] in ["Shield", "Points"]:
+                st.success(f"🎉 **Box #{recent_open['box']} Opened!** {recent_open['desc']}")
+            else:
+                st.error(f"📜 **Box #{recent_open['box']} Opened!** {recent_open['desc']}")
+
         if not has_solved_riddle:
             st.markdown("### 🧩 Step 1: Solve the Gatekeeper Riddle")
             st.markdown(f"> *\"{daily_riddle_data['question']}\"*")
@@ -505,6 +515,14 @@ def render_player_portal_view(selected_player):
                                         "time": datetime.now().strftime("%H:%M")
                                     }
                                     state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
+                                    
+                                    # Save recent open banner info
+                                    state.setdefault("vault_recent_open", {})[selected_player] = {
+                                        "day": day_key,
+                                        "box": b_key,
+                                        "type": b_data["type"],
+                                        "desc": b_data["desc"]
+                                    }
                                     save_state(state)
                                     
                                     if b_data["type"] == "Shield":
@@ -515,7 +533,6 @@ def render_player_portal_view(selected_player):
                                             unsafe_allow_html=True
                                         )
                                         st.balloons()
-                                        st.success(f"🎉 INCREDIBLE! Box #{b_key} contained a **Shield**!")
                                     elif b_data["type"] == "Points":
                                         pts = b_data["value"]
                                         state["players"][selected_player]["points"] = state["players"][selected_player].get("points", 0) + pts
@@ -525,14 +542,12 @@ def render_player_portal_view(selected_player):
                                             unsafe_allow_html=True
                                         )
                                         st.balloons()
-                                        st.success(f"✨ SUCCESS! Box #{b_key} contained **{pts} Prize Points**!")
                                     else:
                                         save_state(state)
                                         st.markdown(
                                             '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
                                             unsafe_allow_html=True
                                         )
-                                        st.error(f"📜 Box #{b_key} opened: {b_data['desc']}. Empty!")
                                     st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
@@ -898,7 +913,7 @@ elif nav == "👑 Host Control (Neilio)":
         
         # --- HOST VAULT X-RAY INSPECTOR & CONTROLS ---
         st.subheader("🔍 Host Vault X-Ray Inspector & Controls")
-        st.caption("Inspect the contents of all Safety Deposit Boxes for today, re-shuffle them randomly, or reset all opened boxes and attempts.")
+        st.caption("Inspect the contents of all Safety Deposit Boxes for today without opening them, re-shuffle them, or reset opened boxes.")
         
         col_vault_btn1, col_vault_btn2 = st.columns(2)
         if col_vault_btn1.button("🎲 Re-shuffle & Randomize Today's Vault"):
@@ -918,6 +933,8 @@ elif nav == "👑 Host Control (Neilio)":
                 del state["vault_riddle_solved"][day_key]
             for p_dat in state["players"].values():
                 p_dat["claimed_items"] = [item for item in p_dat.get("claimed_items", []) if item.get("day") != day_key]
+            if "vault_recent_open" in state:
+                state["vault_recent_open"] = {}
             save_state(state)
             st.warning("⚠️ Today's vault has been completely reset! All boxes are closed and attempts cleared.")
             st.rerun()
