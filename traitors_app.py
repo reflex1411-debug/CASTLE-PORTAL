@@ -188,7 +188,8 @@ def get_default_state():
             "public_shield": False,
             "hide_role": False,
             "photo": "",
-            "points": 0
+            "points": 0,
+            "claimed_items": [] # Tracks personal claims history
         }
 
     return {
@@ -252,6 +253,7 @@ def load_state():
         p.setdefault("public_shield", False)
         p.setdefault("photo", "")
         p.setdefault("points", 0)
+        p.setdefault("claimed_items", [])
     return state
 
 def save_state(state):
@@ -340,6 +342,18 @@ def render_player_portal_view(selected_player):
     r_col1.metric("Secret Role", f"🗡️ {role}" if "Traitor" in role else "🕯️ Faithful")
     r_col2.metric("Current Status", status)
     r_col3.metric("Personal Points", f"{p_info.get('points', 0)} pts")
+
+    st.divider()
+
+    # --- PERSONAL CLAIM HISTORY (SOLVES PLAYER COMPLAINTS) ---
+    with st.expander("📦 My Claimed Vault Items & Winnings History", expanded=True):
+        claimed_list = p_info.get("claimed_items", [])
+        if claimed_list:
+            st.write("Here is the official record of everything your character has unlocked and won:")
+            for item in claimed_list:
+                st.write(f"• **{item['time']}** ({item['day']}) — Box #{item['box']}: {item['desc']}")
+        else:
+            st.info("You haven't opened any Safety Deposit Boxes yet today. Solve the riddle below to begin!")
 
     st.divider()
 
@@ -483,6 +497,15 @@ def render_player_portal_view(selected_player):
                                     vault_contents[b_key]["opened"] = True
                                     vault_contents[b_key]["opened_by"] = selected_player
                                     state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
+                                    
+                                    # Record claim history for player verification
+                                    claim_record = {
+                                        "day": day_key,
+                                        "box": b_key,
+                                        "desc": b_data["desc"],
+                                        "time": datetime.now().strftime("%H:%M")
+                                    }
+                                    state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
                                     save_state(state)
                                     
                                     # Audio and visual feedback
@@ -625,6 +648,19 @@ if nav == "🏰 Castle Hall (Public)":
 
     with st.expander("📜 Today's Daily Mission / Asynchronous Rules", expanded=True):
         st.markdown(state["mission_text"])
+
+    # --- ANONYMOUS VAULT PRIZE LEDGER (RETROACTIVE SUMMARY) ---
+    with st.expander("🏦 Safety Deposit Vault: Claimed Prizes Ledger", expanded=False):
+        st.markdown("Here is the anonymous ledger of all prizes claimed from the Safety Deposit Boxes across all days:")
+        any_claims = False
+        for d_key, contents in state.get("vault_contents", {}).items():
+            for b_id, b_info in contents.items():
+                if b_info.get("opened") and b_info.get("type") in ["Shield", "Points"]:
+                    any_claims = True
+                    claimer_name = b_info.get("opened_by", "A Traveler")
+                    st.write(f"• **{d_key} (Box #{b_id})**: Claimed **{b_info['desc']}** by *{claimer_name}*")
+        if not any_claims:
+            st.write("No Shields or Prize Points have been claimed from the vault yet. The boxes await...")
 
     st.subheader("🖼️ Portraits on the Great Hall Wall")
     players_list = list(state["players"].items())
