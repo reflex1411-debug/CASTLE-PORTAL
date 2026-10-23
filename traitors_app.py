@@ -210,25 +210,6 @@ def get_default_state():
             "claimed_items": []
         }
 
-    # Pre-populate curses and riddles for all 12 days
-    default_curses = {}
-    default_riddles = {}
-    for d_num in range(1, 13):
-        default_curses[f"Day {d_num}"] = {
-            "boxes": ["3", "7", "12", "15", "19"],
-            "items": [
-                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
-                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
-                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
-                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
-                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
-            ]
-        }
-        default_riddles[f"Day {d_num}"] = {
-            "question": f"Day {d_num}: I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
-            "answer": "wish"
-        }
-
     return {
         "current_day": 1,
         "fire_pit_round": 1,
@@ -250,13 +231,30 @@ def get_default_state():
         "vault_attempts": {},
         "vault_riddle_solved": {},
         "vault_recent_open": {},  
-        "custom_curses": default_curses,
-        "vault_riddles": default_riddles,
+        "custom_curses": {
+            "Day 1": {
+                "boxes": ["3", "7", "12", "15", "19"],
+                "items": [
+                    {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                    {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                    {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                    {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                    {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+                ]
+            }
+        },
+        "vault_riddles": {
+            "Day 1": {
+                "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
+                "answer": "wish"
+            }
+        },
         "vault_config": {
             "shields_count": 2,
             "prize_points_value": 25,
             "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
         },
+        # --- CHAMBER OF RELICS CONFIG ---
         "relics_vault_contents": {},
         "relics_config": {
             "riddles": {
@@ -296,14 +294,45 @@ def load_state():
     state.setdefault("traitor_vote_locked", False)
     state.setdefault("chamber_of_relics_locked", True)
     state.setdefault("relics_vault_contents", {})
-    
-    # Ensure default curses and riddles for all days exist
-    default_state = get_default_state()
-    state.setdefault("custom_curses", default_state["custom_curses"])
-    state.setdefault("vault_riddles", default_state["vault_riddles"])
-    state.setdefault("vault_config", default_state["vault_config"])
-    state.setdefault("relics_config", default_state["relics_config"])
-
+    state.setdefault("custom_curses", {
+        "Day 1": {
+            "boxes": ["3", "7", "12", "15", "19"],
+            "items": [
+                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+            ]
+        }
+    })
+    state.setdefault("vault_riddles", {
+        "Day 1": {
+            "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
+            "answer": "wish"
+        }
+    })
+    state.setdefault("vault_config", {
+        "shields_count": 2,
+        "prize_points_value": 25,
+        "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
+    })
+    state.setdefault("relics_config", {
+        "riddles": {
+            "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
+            "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
+            "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
+            "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
+            "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
+            "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
+            "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
+            "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
+            "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
+            "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
+            "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
+            "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
+        }
+    })
     for p in state.get("players", {}).values():
         p["role"] = str(p.get("role", "Faithful"))
         p["status"] = str(p.get("status", "Alive"))
@@ -530,7 +559,7 @@ def render_player_portal_view(selected_player):
     total_boxes = alive_count * 3
     
     vault_contents = state["vault_contents"].setdefault(day_key, {})
-    if not vault_contents:
+    if not vault_contents or len(vault_contents) != total_boxes:
         state["vault_contents"][day_key] = initialize_vault_boxes(day_key, total_boxes, state["vault_config"])
         save_state(state)
         vault_contents = state["vault_contents"][day_key]
@@ -549,7 +578,7 @@ def render_player_portal_view(selected_player):
     if status != "Alive" and status != "Undead":
         st.warning("👻 Ghosts cannot tamper with the Safety Deposit Vault!")
     else:
-        st.markdown(f"**Active Wall:** `{len(vault_contents)}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
+        st.markdown(f"**Active Wall:** `{total_boxes}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
         
         recent_open = state.get("vault_recent_open", {}).get(selected_player)
         if recent_open and recent_open.get("day") == day_key:
@@ -592,56 +621,54 @@ def render_player_portal_view(selected_player):
                     for idx, b_key in enumerate(row_keys):
                         b_data = vault_contents[b_key]
                         with cols[idx]:
-                            unique_box_btn_key = f"btn_box_{day_key}_{selected_player}_{b_key}"
                             if b_data["opened"]:
-                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=unique_box_btn_key)
+                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=f"btn_box_{day_key}_{b_key}")
                             else:
-                                if st.button(f"📦 Box #{b_key}", key=unique_box_btn_key):
-                                    if not vault_contents[b_key]["opened"]:
-                                        vault_contents[b_key]["opened"] = True
-                                        vault_contents[b_key]["opened_by"] = selected_player
-                                        state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
+                                if st.button(f"📦 Box #{b_key}", key=f"btn_box_{day_key}_{b_key}"):
+                                    vault_contents[b_key]["opened"] = True
+                                    vault_contents[b_key]["opened_by"] = selected_player
+                                    state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
+                                    
+                                    claim_record = {
+                                        "day": day_key,
+                                        "box": f"Box #{b_key}",
+                                        "desc": b_data["desc"],
+                                        "time": datetime.now().strftime("%H:%M")
+                                    }
+                                    state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
+                                    
+                                    state.setdefault("vault_recent_open", {})[selected_player] = {
+                                        "day": day_key,
+                                        "box": b_key,
+                                        "type": b_data["type"],
+                                        "desc": b_data["desc"]
+                                    }
+                                    
+                                    if b_data["type"] == "Shield":
+                                        state["players"][selected_player]["shield"] = True
+                                    elif b_data["type"] == "Points":
+                                        pts = b_data["value"]
+                                        state["prize_pot"] += pts 
+                                    elif b_data["type"] == "Curse":
+                                        toxicity = b_data.get("toxicity", "Moderately Toxic")
+                                        target_role = b_data.get("target_role", "All")
+                                        is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
                                         
-                                        claim_record = {
-                                            "day": day_key,
-                                            "box": f"Box #{b_key}",
-                                            "desc": b_data["desc"],
-                                            "time": datetime.now().strftime("%H:%M")
-                                        }
-                                        state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
-                                        
-                                        state.setdefault("vault_recent_open", {})[selected_player] = {
-                                            "day": day_key,
-                                            "box": b_key,
-                                            "type": b_data["type"],
-                                            "desc": b_data["desc"]
-                                        }
-                                        
-                                        if b_data["type"] == "Shield":
-                                            state["players"][selected_player]["shield"] = True
-                                        elif b_data["type"] == "Points":
-                                            pts = b_data["value"]
-                                            state["prize_pot"] += pts 
-                                        elif b_data["type"] == "Curse":
-                                            toxicity = b_data.get("toxicity", "Moderately Toxic")
-                                            target_role = b_data.get("target_role", "All")
-                                            is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
-                                            
-                                            if target_role == "Traitor" and not is_traitor:
-                                                b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
-                                            else:
-                                                if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
-                                                    state["players"][selected_player]["status"] = "Murdered"
-                                                    state["players"][selected_player]["eliminated_day"] = day_key
-                                                elif toxicity == "Highly Toxic":
-                                                    state["prize_pot"] = max(0, state["prize_pot"] - 100)
-                                                elif toxicity == "Moderately Toxic":
-                                                    state["prize_pot"] = max(0, state["prize_pot"] - 50)
-                                                else: 
-                                                    state["prize_pot"] = max(0, state["prize_pot"] - 25)
+                                        if target_role == "Traitor" and not is_traitor:
+                                            b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
+                                        else:
+                                            if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
+                                                state["players"][selected_player]["status"] = "Murdered"
+                                                state["players"][selected_player]["eliminated_day"] = day_key
+                                            elif toxicity == "Highly Toxic":
+                                                state["prize_pot"] = max(0, state["prize_pot"] - 100)
+                                            elif toxicity == "Moderately Toxic":
+                                                state["prize_pot"] = max(0, state["prize_pot"] - 50)
+                                            else: 
+                                                state["prize_pot"] = max(0, state["prize_pot"] - 25)
 
-                                        save_state(state)
-                                        st.rerun()
+                                    save_state(state)
+                                    st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
     if "Traitor" in role and status in ["Alive", "Undead"]:
