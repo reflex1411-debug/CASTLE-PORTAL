@@ -254,7 +254,6 @@ def get_default_state():
             "prize_points_value": 25,
             "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
         },
-        # --- CHAMBER OF RELICS CONFIG ---
         "relics_vault_contents": {},
         "relics_config": {
             "riddles": {
@@ -621,54 +620,58 @@ def render_player_portal_view(selected_player):
                     for idx, b_key in enumerate(row_keys):
                         b_data = vault_contents[b_key]
                         with cols[idx]:
+                            # RECTIFICATION: Scoped button keys with selected_player to prevent session/God Mode bleeding
+                            unique_box_btn_key = f"btn_box_{day_key}_{selected_player}_{b_key}"
                             if b_data["opened"]:
-                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=f"btn_box_{day_key}_{b_key}")
+                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=unique_box_btn_key)
                             else:
-                                if st.button(f"📦 Box #{b_key}", key=f"btn_box_{day_key}_{b_key}"):
-                                    vault_contents[b_key]["opened"] = True
-                                    vault_contents[b_key]["opened_by"] = selected_player
-                                    state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
-                                    
-                                    claim_record = {
-                                        "day": day_key,
-                                        "box": f"Box #{b_key}",
-                                        "desc": b_data["desc"],
-                                        "time": datetime.now().strftime("%H:%M")
-                                    }
-                                    state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
-                                    
-                                    state.setdefault("vault_recent_open", {})[selected_player] = {
-                                        "day": day_key,
-                                        "box": b_key,
-                                        "type": b_data["type"],
-                                        "desc": b_data["desc"]
-                                    }
-                                    
-                                    if b_data["type"] == "Shield":
-                                        state["players"][selected_player]["shield"] = True
-                                    elif b_data["type"] == "Points":
-                                        pts = b_data["value"]
-                                        state["prize_pot"] += pts 
-                                    elif b_data["type"] == "Curse":
-                                        toxicity = b_data.get("toxicity", "Moderately Toxic")
-                                        target_role = b_data.get("target_role", "All")
-                                        is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
+                                if st.button(f"📦 Box #{b_key}", key=unique_box_btn_key):
+                                    # Guard check: Ensure box hasn't been opened concurrently
+                                    if not vault_contents[b_key]["opened"]:
+                                        vault_contents[b_key]["opened"] = True
+                                        vault_contents[b_key]["opened_by"] = selected_player
+                                        state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
                                         
-                                        if target_role == "Traitor" and not is_traitor:
-                                            b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
-                                        else:
-                                            if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
-                                                state["players"][selected_player]["status"] = "Murdered"
-                                                state["players"][selected_player]["eliminated_day"] = day_key
-                                            elif toxicity == "Highly Toxic":
-                                                state["prize_pot"] = max(0, state["prize_pot"] - 100)
-                                            elif toxicity == "Moderately Toxic":
-                                                state["prize_pot"] = max(0, state["prize_pot"] - 50)
-                                            else: 
-                                                state["prize_pot"] = max(0, state["prize_pot"] - 25)
+                                        claim_record = {
+                                            "day": day_key,
+                                            "box": f"Box #{b_key}",
+                                            "desc": b_data["desc"],
+                                            "time": datetime.now().strftime("%H:%M")
+                                        }
+                                        state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
+                                        
+                                        state.setdefault("vault_recent_open", {})[selected_player] = {
+                                            "day": day_key,
+                                            "box": b_key,
+                                            "type": b_data["type"],
+                                            "desc": b_data["desc"]
+                                        }
+                                        
+                                        if b_data["type"] == "Shield":
+                                            state["players"][selected_player]["shield"] = True
+                                        elif b_data["type"] == "Points":
+                                            pts = b_data["value"]
+                                            state["prize_pot"] += pts 
+                                        elif b_data["type"] == "Curse":
+                                            toxicity = b_data.get("toxicity", "Moderately Toxic")
+                                            target_role = b_data.get("target_role", "All")
+                                            is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
+                                            
+                                            if target_role == "Traitor" and not is_traitor:
+                                                b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
+                                            else:
+                                                if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
+                                                    state["players"][selected_player]["status"] = "Murdered"
+                                                    state["players"][selected_player]["eliminated_day"] = day_key
+                                                elif toxicity == "Highly Toxic":
+                                                    state["prize_pot"] = max(0, state["prize_pot"] - 100)
+                                                elif toxicity == "Moderately Toxic":
+                                                    state["prize_pot"] = max(0, state["prize_pot"] - 50)
+                                                else: 
+                                                    state["prize_pot"] = max(0, state["prize_pot"] - 25)
 
-                                    save_state(state)
-                                    st.rerun()
+                                        save_state(state)
+                                        st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
     if "Traitor" in role and status in ["Alive", "Undead"]:
