@@ -228,7 +228,7 @@ BACKUP_FILE = "castle_state_backup.json"
 HOST_PIN = "1411"  # Host Neilio's PIN
 
 AOL_SENDER_EMAIL = "hoeyneil@aol.com"
-AOL_PASSWORD = "YOUR_AOL_APP_PASSWORD_HERE"  # Replace with your generated AOL App Password
+AOL_PASSWORD = "bypwmpqzaqgfklgx"  # Configured AOL App Password
 
 def send_email_backup(state_data):
     """Automatically emails the castle state backup JSON file to hoeyneil@aol.com."""
