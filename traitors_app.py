@@ -157,43 +157,45 @@ st.markdown("""
         font-weight: bold;
     }
 
-    /* WhatsApp Style Chat UI */
-    .wa-chat-container {
-        background-color: #e5ddd5;
+    /* Castle Chat UI */
+    .castle-chat-container {
+        background-color: #2c2a29;
         border-radius: 8px;
         border: 2px solid #c5a059;
         padding: 16px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
     }
-    .wa-header {
-        background-color: #075e54;
-        color: #ffffff !important;
+    .castle-chat-header {
+        background-color: #5c1d1d;
+        color: #ebdccb !important;
         padding: 12px 16px;
         border-radius: 6px 6px 0 0;
+        font-family: 'Georgia', serif;
         font-weight: bold;
         font-size: 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        border-bottom: 2px solid #c5a059;
     }
-    .wa-header span {
-        color: #ffffff !important;
+    .castle-chat-header span {
+        color: #ebdccb !important;
     }
-    .wa-message-bubble {
-        background-color: #ffffff;
+    .castle-message-bubble {
+        background-color: #f6f1e7;
+        border: 1px solid #c5a059;
         border-radius: 7.5px;
         padding: 10px 14px;
-        margin-bottom: 8px;
-        max-width: 80%;
-        box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
-        position: relative;
+        margin-bottom: 10px;
+        max-width: 85%;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    .wa-message-bubble b {
-        color: #075e54 !important;
+    .castle-message-bubble b {
+        color: #5c1d1d !important;
     }
-    .wa-message-time {
+    .castle-message-time {
         font-size: 10px;
-        color: #999999 !important;
+        color: #7a756b !important;
         text-align: right;
         margin-top: 4px;
     }
@@ -302,7 +304,7 @@ def get_default_state():
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
         "headline": "Welcome to Neilio's Castle! The Round Table is now in session.",
-        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nDebate theories in the WhatsApp chat and cast your vote before the timer expires!",
+        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nDebate theories in the chamber and cast your vote before the timer expires!",
         "players": default_players,
         "votes": {},
         "fire_pit_votes": {},
@@ -631,8 +633,12 @@ st.sidebar.divider()
 st.sidebar.markdown("### 🎵 Castle Atmosphere")
 enable_audio = st.sidebar.toggle("Play Theme Music 🎶", value=True)
 if enable_audio:
-    # Playing low background music loop via Streamlit audio component
-    st.sidebar.audio("https://www2.cs.uic.edu/~i101/SoundFiles/CantinaBand3.wav", format="audio/wav", loop=True, autoplay=True)
+    # Option to load your local music file (e.g. traitors_theme.mp3)
+    audio_file_path = "traitors_theme.mp3"
+    if os.path.exists(audio_file_path):
+        st.sidebar.audio(audio_file_path, format="audio/mp3", loop=True, autoplay=True)
+    else:
+        st.sidebar.caption("💡 Upload `traitors_theme.mp3` to your app folder to play custom music.")
 
 alive_count = sum(1 for p in state["players"].values() if str(p.get("status", "Alive")) in ["Alive", "Undead"])
 st.sidebar.metric("🟢 Survivors", f"{alive_count} / {len(state['players'])}")
@@ -641,7 +647,7 @@ st.sidebar.metric("🏆 Prize Pot", f"{state['prize_pot']} pts")
 st.sidebar.divider()
 nav_options = [
     "🏰 Castle Hall (Public)",
-    "💬 Round Table WhatsApp Chat",
+    "💬 Round Table Live Chat",
     "🗳️ Player Portal (Vote & Role)",
     "💍 Chamber of Relics",
     "📊 The Voting Matrix",
@@ -686,17 +692,22 @@ if nav == "🏰 Castle Hall (Public)":
         col.markdown(card, unsafe_allow_html=True)
 
 # ==========================================
-# TAB 2: ROUND TABLE WHATSAPP CHAT
+# TAB 2: ROUND TABLE LIVE CHAT
 # ==========================================
-elif nav == "💬 Round Table WhatsApp Chat":
-    st.title("💬 Round Table WhatsApp Chat")
+elif nav == "💬 Round Table Live Chat":
+    st.title("💬 Round Table Live Chat")
     
-    # Check if player is remembered via session state
-    if "logged_in_player" not in st.session_state:
-        st.warning("⚠️ You are not authenticated yet! Please log in with your name and PIN in the **Player Portal** first, or select your identity below:")
-        chat_author = st.selectbox("Select Your Identity for Chat:", list(state["players"].keys()), key="wa_fallback_identity")
+    # Determine chat identity (Remembers logged-in player, or allows chatting as Host / Fallback)
+    chat_options = ["👑 High Host Neilio"] + list(state["players"].keys())
+    default_chat_idx = 0
+    if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
+        default_chat_idx = chat_options.index(st.session_state["logged_in_player"])
+
+    chat_author = st.selectbox("Chatting As:", chat_options, index=default_chat_idx, key="castle_chat_identity")
+    
+    if chat_author == "👑 High Host Neilio":
+        st.success("👑 Chatting as **High Host Neilio** (The Host)")
     else:
-        chat_author = st.session_state["logged_in_player"]
         st.success(f"💬 Chatting as: **{chat_author}**")
 
     timers = state["round_table_timers"].setdefault(day_key, {"voting_opens": "18:00", "voting_closes": "21:00"})
@@ -705,8 +716,8 @@ elif nav == "💬 Round Table WhatsApp Chat":
     t2.markdown(f"<div class='award-card'><b>🔴 Voting Closes:</b> {timers['voting_closes']}</div>", unsafe_allow_html=True)
     st.divider()
 
-    st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
-    st.markdown(f'<div class="wa-header"><span>💬 The Round Table ({day_key})</span><span>🔒 Encrypted Whispers</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="castle-chat-container">', unsafe_allow_html=True)
+    st.markdown(f'<div class="castle-chat-header"><span>💬 The Round Table ({day_key})</span><span>🔒 Encrypted Whispers</span></div>', unsafe_allow_html=True)
 
     chat_messages = state["round_table_chat"].setdefault(day_key, [])
 
@@ -715,16 +726,16 @@ elif nav == "💬 Round Table WhatsApp Chat":
         if chat_messages:
             for msg in chat_messages:
                 st.markdown(f"""
-                <div class="wa-message-bubble">
+                <div class="castle-message-bubble">
                     <b>{msg['author']}</b><br>
                     {msg['text']}
-                    <div class="wa-message-time">{msg['time']}</div>
+                    <div class="castle-message-time">{msg['time']}</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
             st.info("No messages in the chat yet. Start the discussion below...")
 
-    with st.form("wa_chat_form", clear_on_submit=True):
+    with st.form("castle_chat_form", clear_on_submit=True):
         c_input, c_btn = st.columns([4, 1])
         chat_text = c_input.text_input("Type a message...", placeholder="Type your accusation or defense...", label_visibility="collapsed")
         chat_submit = c_btn.form_submit_button("Send ➔")
@@ -852,13 +863,19 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 7: HOST CONTROL CENTRE
+# TAB 7: HOST CONTROL CENTRE (WITH GOD MODE VIEWPORT)
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        st.markdown("---")
+        st.subheader("👁️ Host God Mode: Player Portal Preview")
+        god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
+        with st.expander(f"🔮 Active God Mode Viewport: {god_mode_player}", expanded=True):
+            render_player_portal_view(god_mode_player)
+
         st.markdown("---")
         st.subheader("⚖️ Vote Tally Controls")
         if st.button("⚖️ Tally Votes & Check for Ties"):
