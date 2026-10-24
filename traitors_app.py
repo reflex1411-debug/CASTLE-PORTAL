@@ -906,14 +906,12 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
-        # --- NEW: HOST DRAMATIC SOUNDBOARD ---
         st.markdown("---")
         st.subheader("🎶 Host Dramatic Soundboard")
         st.markdown("Play theme music on demand for maximum suspense during the Round Table or banishments!")
         
         audio_file_path = "traitors_theme.mp3"
         if os.path.exists(audio_file_path):
-            # Using st.audio with autoplay=True when clicked
             if st.button("🎵 Play Dramatic Theme Music 🎶"):
                 st.audio(audio_file_path, format="audio/mp3", autoplay=True)
                 st.success("🎶 Suspense track triggered across the castle!")
@@ -1032,4 +1030,74 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
         st.subheader("1. Game Day, Phase & Decrees")
         c1, c2, c3, c4 = st.columns(4)
-    <FollowUp/>
+        new_day = c1.number_input("Day", 1, 12, state["current_day"])
+        new_phase = c2.selectbox("Phase", PHASES, index=PHASES.index(state["phase"]) if state["phase"] in PHASES else 0)
+        new_fp = c3.number_input("Fire Pit Round", 1, 5, state.get("fire_pit_round", 1))
+        new_pot = c4.number_input("Prize Pot", value=state["prize_pot"], step=50)
+        new_head = st.text_input("Headline", state["headline"])
+        new_miss = st.text_area("Mission Text", state["mission_text"])
+        if st.button("💾 Save State & Decrees"):
+            state.update({"current_day": new_day, "phase": new_phase, "fire_pit_round": new_fp, "prize_pot": new_pot, "headline": new_head, "mission_text": new_miss})
+            save_state(state)
+            st.success("Updated!")
+            st.rerun()
+
+        st.markdown("---")
+        st.subheader("3. Manage Roster & Roles")
+        roster_rows = [{"Player Name": n, "PIN": d.get("pin"), "Role": d.get("role"), "Status": d.get("status"), "Eliminated On": d.get("eliminated_day")} for n, d in state["players"].items()]
+        edited_df = st.data_editor(pd.DataFrame(roster_rows), use_container_width=True, hide_index=True)
+        if st.button("💾 Save Roster"):
+            new_players = {}
+            for _, row in edited_df.iterrows():
+                name = row["Player Name"]
+                if name.strip():
+                    new_players[name] = {
+                        "pin": str(row["PIN"]), "role": str(row["Role"]), "status": str(row["Status"]),
+                        "eliminated_day": str(row["Eliminated On"]), "shield": False, "public_shield": False,
+                        "hide_role": False, "photo": state["players"].get(name, {}).get("photo", ""), "points": 0
+                    }
+            state["players"] = new_players
+            save_state(state)
+            st.success("Roster saved!")
+            st.rerun()
+
+        st.markdown("---")
+        st.subheader("4. ☁️ Castle Vault Backup & Restore Sanctuary")
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+        
+        with b_col1:
+            json_bytes = json.dumps(state, indent=4).encode("utf-8")
+            st.download_button(
+                label="⬇️ Download Backup",
+                data=json_bytes,
+                file_name=f"castle_state_day_{state['current_day']}.json",
+                mime="application/json"
+            )
+            
+        with b_col2:
+            if st.button("🔄 Restore Last Checkpoint"):
+                if os.path.exists(BACKUP_FILE):
+                    with open(BACKUP_FILE, "r") as f:
+                        backup_state = json.load(f)
+                    with open(DATA_FILE, "w") as f:
+                        json.dump(backup_state, f, indent=4)
+                    st.success("✅ Castle restored to last checkpoint!")
+                    st.rerun()
+                else:
+                    st.warning("No backup checkpoint found.")
+
+        with b_col3:
+            if st.button("⚠️ Reset to Day 1 Defaults"):
+                reset_state = get_default_state()
+                save_state(reset_state)
+                st.warning("Castle reset to Day 1 defaults.")
+                st.rerun()
+
+        with b_col4:
+            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                if st.button("🔄 Confirm File Upload"):
+                    restored_state = json.load(uploaded_file)
+                    save_state(restored_state)
+                    st.success("✅ Vault successfully restored from uploaded file!")
+                    st.rerun()
