@@ -339,13 +339,28 @@ def get_default_state():
             "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
         },
         "relics_vault_contents": {},
-        "relics_config": {},
+        "relics_config": {
+            "riddles": {
+                "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
+                "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
+                "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
+                "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
+                "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
+                "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
+                "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
+                "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
+                "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
+                "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
+                "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
+                "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
+            }
+        },
         "round_table_chat": {},
         "round_table_timers": {},
         "round_table_tie_breaker": {},
         "non_voters": {},
         "public_execution": {},
-        "login_history": []  # Tracks login audit log timestamps
+        "login_history": []
     }
 
 def load_state():
@@ -821,7 +836,6 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
         
         if entered_pin and entered_pin == str(p_info.get("pin", "")):
             st.session_state["logged_in_player"] = selected_player
-            # Log login to history and trigger email alert to Host Neilio
             login_entry = {"player": selected_player, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "day": day_key}
             state.setdefault("login_history", []).append(login_entry)
             save_state(state)
@@ -927,21 +941,16 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
-        # --- NEW: LOGIN AUDIT LOG (CURRENT & LAST 24H) ---
         st.markdown("---")
         st.subheader("👁️ Castle Login Audit Log (Active & Past 24 Hours)")
-        
-        # Currently logged in session check
         if "logged_in_player" in st.session_state:
             st.info(f"🟢 **Currently Logged In on this Host Session:** {st.session_state['logged_in_player']}")
         else:
             st.info("⚪ Host browser session is not currently logged into a player portal.")
 
-        # Filter login history for the last 24 hours
         login_history = state.setdefault("login_history", [])
         now = datetime.now()
         cutoff_24h = now - timedelta(hours=24)
-        
         recent_logins = []
         for entry in login_history:
             try:
@@ -960,15 +969,13 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.markdown("---")
         st.subheader("🎶 Host Dramatic Soundboard")
-        st.markdown("Play theme music on demand for maximum suspense during the Round Table or banishments!")
-        
         audio_file_path = "traitors_theme.mp3"
         if os.path.exists(audio_file_path):
             if st.button("🎵 Play Dramatic Theme Music 🎶"):
                 st.audio(audio_file_path, format="audio/mp3", autoplay=True)
                 st.success("🎶 Suspense track triggered across the castle!")
         else:
-            st.warning("⚠️ `traitors_theme.mp3` file not found in repository directory. Please upload it to enable soundboard playback.")
+            st.warning("⚠️ `traitors_theme.mp3` file not found in repository directory.")
 
         st.markdown("---")
         st.subheader("🏰 Castle Gates Access Control")
@@ -977,15 +984,76 @@ elif nav == "👑 Host Control (Neilio)":
         if new_gates != current_gates:
             state["castle_gates_open"] = new_gates
             save_state(state)
-            if new_gates:
-                st.success("✅ Castle gates opened! Players can now log into their portals.")
-            else:
-                st.warning("🔒 Castle gates locked! Player logins are now barred.")
             st.rerun()
 
         st.markdown("---")
+        st.subheader("💍 Chamber of Relics Lock Control")
+        current_relics_lock = state.get("chamber_of_relics_locked", True)
+        new_relics_lock = st.toggle("🔒 Seal Chamber of Relics from Players", value=current_relics_lock)
+        if new_relics_lock != current_relics_lock:
+            state["chamber_of_relics_locked"] = new_relics_lock
+            save_state(state)
+            st.rerun()
+
+        st.markdown("---")
+        st.subheader("🏦 Safety Deposit Vault Room Access Control")
+        vault_room_status = state.get("vault_room_open", True)
+        new_vault_room_status = st.toggle("🔓 Safety Deposit Vault Room Open to Players", value=vault_room_status)
+        if new_vault_room_status != vault_room_status:
+            state["vault_room_open"] = new_vault_room_status
+            save_state(state)
+            st.rerun()
+
+        st.markdown("---")
+        st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
+        curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
+        day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
+            "boxes": ["3", "7", "12", "15", "19"],
+            "items": [
+                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+            ]
+        })
+
+        with st.form("host_curse_config_form"):
+            st.markdown("### 📦 Elect 5 Cursed Box Numbers")
+            current_boxes_str = ", ".join([str(b) for b in day_curse_config.get("boxes", ["3", "7", "12", "15", "19"])])
+            boxes_input = st.text_input("Enter 5 box numbers separated by commas:", value=current_boxes_str)
+            
+            st.markdown("### ☠️ Configure 5 Cursed Items (Toxicity & Effects)")
+            updated_items = []
+            toxicity_options = ["Less Toxic", "Moderately Toxic", "Highly Toxic", "Traitor-Lethal", "Instant Death"]
+            target_options = ["All", "Traitor"]
+
+            for idx, c_item in enumerate(day_curse_config.get("items", [])):
+                st.markdown(f"**Curse Item #{idx + 1}**")
+                col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
+                c_name = col_i1.text_input(f"Item Name #{idx+1}", value=c_item.get("name", f"Curse #{idx+1}"), key=f"c_name_{idx}")
+                c_tox = col_i2.selectbox(f"Toxicity #{idx+1}", toxicity_options, index=toxicity_options.index(c_item.get("toxicity", "Moderately Toxic")) if c_item.get("toxicity") in toxicity_options else 0, key=f"c_tox_{idx}")
+                c_tgt = col_i3.selectbox(f"Target #{idx+1}", target_options, index=target_options.index(c_item.get("target", "All")) if c_item.get("target") in target_options else 0, key=f"c_tgt_{idx}")
+                c_desc = st.text_input(f"Description & Consequence #{idx+1}", value=c_item.get("desc", ""), key=f"c_desc_{idx}")
+                st.markdown("---")
+                updated_items.append({
+                    "name": c_name.strip(),
+                    "toxicity": c_tox,
+                    "target": c_tgt,
+                    "desc": c_desc.strip()
+                })
+
+            save_curses_btn = st.form_submit_button("💾 Save Curses & Traps for " + curse_day_sel)
+            if save_curses_btn:
+                parsed_boxes = [b.strip() for b in boxes_input.split(",") if b.strip().isdigit()]
+                day_curse_config["boxes"] = parsed_boxes
+                day_curse_config["items"] = updated_items
+                save_state(state)
+                st.success(f"✅ Successfully updated curses for {curse_day_sel}!")
+                st.rerun()
+
+        st.markdown("---")
         st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
-        
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
         current_non_voters = state["non_voters"].setdefault(day_key, [])
         
@@ -1038,46 +1106,6 @@ elif nav == "👑 Host Control (Neilio)":
                     st.error(f"👻 **GHOST STRIKE!** {victim} received {max_v} execution votes and has been instantly struck down by the Ghost!")
             else:
                 st.warning("No execution votes recorded.")
-
-        st.markdown("---")
-        st.subheader("⚖️ Round Table Vote Tally Controls")
-        if st.button("⚖️ Tally Round Table Votes & Check for Ties"):
-            tie_data = state["round_table_tie_breaker"].setdefault(day_key, {})
-            v_key = f"{day_key}_tie" if tie_data.get("active", False) else day_key
-            tally = {}
-            for vdata in state["votes"].get(v_key, {}).values():
-                tgt = vdata["target"]
-                tally[tgt] = tally.get(tgt, 0) + 1
-            if tally:
-                max_v = max(tally.values())
-                top_t = [t for t, c in tally.items() if c == max_v]
-                if len(top_t) > 1 and not tie_data.get("active", False):
-                    tie_data["active"] = True
-                    tie_data["tied_players"] = top_t
-                    save_state(state)
-                    st.error(f"⚖️ **TIE DETECTED!** Between: {', '.join(top_t)}. Sudden Death Re-vote initiated!")
-                else:
-                    banished = top_t[0]
-                    state["players"][banished]["status"] = "Banished"
-                    state["players"][banished]["eliminated_day"] = day_key
-                    save_state(state)
-                    st.success(f"🏆 **{banished}** banished with {max_v} votes!")
-            else: st.warning("No votes recorded yet.")
-
-        st.markdown("---")
-        st.subheader("💍 Chamber & Vault Locks")
-        c_l1, c_l2 = st.columns(2)
-        new_r_lock = c_l1.toggle("🔒 Seal Chamber of Relics", value=state.get("chamber_of_relics_locked", True))
-        if new_r_lock != state.get("chamber_of_relics_locked"):
-            state["chamber_of_relics_locked"] = new_r_lock
-            save_state(state)
-            st.rerun()
-
-        new_v_lock = c_l2.toggle("🔓 Vault Room Open", value=state.get("vault_room_open", True))
-        if new_v_lock != state.get("vault_room_open"):
-            state["vault_room_open"] = new_v_lock
-            save_state(state)
-            st.rerun()
 
         st.markdown("---")
         st.subheader("1. Game Day, Phase & Decrees")
