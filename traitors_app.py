@@ -158,25 +158,25 @@ st.markdown("""
         font-weight: bold;
     }
 
-    /* Circular Round Table CSS Layout */
+    /* Expanded & Spacious Circular Round Table CSS Layout */
     .rt-container {
         position: relative;
         width: 100%;
-        max-width: 480px;
-        height: 480px;
-        margin: 20px auto;
+        max-width: 580px;
+        height: 580px;
+        margin: 30px auto;
         border-radius: 50%;
         border: 4px dashed #c5a059;
         background: radial-gradient(circle, #2c2a29 0%, #1a1817 100%);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.5);
     }
     .rt-table-center {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 150px;
-        height: 150px;
+        width: 180px;
+        height: 180px;
         border-radius: 50%;
         background: #3b2219;
         border: 3px solid #c5a059;
@@ -187,14 +187,14 @@ st.markdown("""
         color: #ebdccb;
         font-family: 'Georgia', serif;
         font-weight: bold;
-        font-size: 13px;
-        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        font-size: 14px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
         z-index: 2;
     }
     .rt-seat {
         position: absolute;
-        width: 80px;
-        height: 80px;
+        width: 95px;
+        height: 95px;
         transform: translate(-50%, -50%);
         background: #ffffff;
         border: 2px solid #c5a059;
@@ -204,17 +204,17 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.35);
         z-index: 3;
     }
     .rt-seat div {
         color: #2c2a29 !important;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: bold;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        max-width: 70px;
+        max-width: 85px;
     }
 
     /* Streamlit Form & Input Styling Overrides */
@@ -259,12 +259,10 @@ def send_email_backup(state_data):
         json_bytes = json.dumps(state_data, indent=4).encode("utf-8")
         msg.add_attachment(json_bytes, maintype='application', subtype='json', filename=f"castle_state_day_{state_data.get('current_day', 1)}.json")
 
-        # Connect to AOL SMTP server
         with smtplib.SMTP_SSL('smtp.aol.com', 465) as smtp:
             smtp.login(AOL_SENDER_EMAIL, AOL_PASSWORD)
             smtp.send_message(msg)
     except Exception as e:
-        # Fails silently so app doesn't break if network/auth has temporary issues
         print(f"Email Backup Error: {e}")
 
 PHASES = [
@@ -404,7 +402,6 @@ def save_state(state):
     with open(DATA_FILE, "w") as f:
         json.dump(state, f, indent=4)
         
-    # Trigger automated email backup to hoeyneil@aol.com
     send_email_backup(state)
 
 state = load_state()
@@ -708,7 +705,7 @@ if nav == "🏰 Castle Hall (Public)":
 # ==========================================
 elif nav == "🪑 The Round Table Room":
     st.title("🪑 The Great Round Table Chamber")
-    st.markdown("> *\"Debate theories in the main chamber. The circular table below marks your seating arrangement.\"*")
+    st.markdown("> *\"Debate theories in the main chamber. Select your identity once below, then type freely like an internet chatroom!\"*")
 
     timers = state["round_table_timers"].setdefault(day_key, {"voting_opens": "18:00", "voting_closes": "21:00"})
     t1, t2 = st.columns(2)
@@ -747,25 +744,31 @@ elif nav == "🪑 The Round Table Room":
 
     with main_panel:
         st.subheader("💬 Live Discussion Chamber")
+        
+        # Persistent identity selector for the chat room (so users don't have to pick from a dropdown per message)
+        chat_identity = st.selectbox("Select Your Identity for Chat:", list(state["players"].keys()), key="rt_chat_identity_persistent")
+        
         chat_messages = state["round_table_chat"].setdefault(day_key, [])
 
         with st.form("rt_chat_form", clear_on_submit=True):
-            ch_col1, ch_col2 = st.columns([1, 3])
-            chat_author = ch_col1.selectbox("Posting As:", list(state["players"].keys()), key="rt_chat_author")
-            chat_text = ch_col2.text_input("State your accusation or defense:")
-            if st.form_submit_button("Send to Round Table 📜") and chat_text.strip():
-                chat_messages.append({"author": chat_author, "text": chat_text.strip(), "time": datetime.now().strftime("%H:%M")})
+            chat_text = st.text_input("Type your theory, defense, or accusation here...")
+            if st.form_submit_button("Send Message 💬") and chat_text.strip():
+                chat_messages.append({
+                    "author": chat_identity, 
+                    "text": chat_text.strip(), 
+                    "time": datetime.now().strftime("%H:%M")
+                })
                 save_state(state)
                 st.rerun()
 
         st.markdown("---")
-        chat_container = st.container(height=400)
+        chat_container = st.container(height=450)
         with chat_container:
             if chat_messages:
                 for msg in chat_messages:
                     st.markdown(f'<div style="background: #ffffff; border: 1px solid #c5a059; border-radius: 6px; padding: 10px; margin-bottom: 8px;"><b>{msg["author"]}</b> <span style="font-size: 11px; color: #7a756b;">({msg["time"]})</span><br>{msg["text"]}</div>', unsafe_allow_html=True)
             else:
-                st.info("The chamber is silent. Begin the debate...")
+                st.info("The chamber is silent. Be the first to speak...")
 
 # ==========================================
 # TAB 3: PLAYER PORTAL
