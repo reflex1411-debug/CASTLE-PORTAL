@@ -303,7 +303,7 @@ def get_default_state():
         "voting_matrix_unlocked": False,
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
-        "voting_active": True,  # Host control for voting live state
+        "voting_active": True,
         "headline": "Welcome to Neilio's Castle! The Round Table voting is now live.",
         "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nCast your vote before voting is closed by the Host!",
         "players": default_players,
@@ -327,6 +327,7 @@ def get_default_state():
         "round_table_chat": {},
         "round_table_timers": {},
         "round_table_tie_breaker": {},
+        "non_voters": {},
         "public_execution": {}
     }
 
@@ -342,8 +343,8 @@ def load_state():
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
-                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "public_execution"]:
-        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active"] else {}))
+                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution"]:
+        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active"] else {}))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -499,7 +500,7 @@ def render_player_portal_view(selected_player):
         if status not in ["Alive", "Undead"]:
             st.warning("👻 Ghosts cannot cast votes!")
         elif not state.get("voting_active", True):
-            st.warning("🔒 **Voting is currently paused or closed by Host Neilio.** Stand by!")
+            st.warning("🔒 **Voting is currently paused or closed by Host Neilio.**")
         else:
             tie_data = state["round_table_tie_breaker"].get(day_key, {})
             is_tie_breaker = tie_data.get("active", False)
@@ -514,13 +515,13 @@ def render_player_portal_view(selected_player):
                 
                 with st.form(f"vote_form_{selected_player}_{vote_key}"):
                     target = st.selectbox("Who are you voting to BANISH?", alive_targets, index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0)
-                    reason = st.text_input("1-Sentence Accusation (Recorded for audit):", value=existing_vote.get("reason", ""))
-                    if st.form_submit_button("Lock In One-Time Vote 🕯️"):
+                    reason = st.text_input("1-Sentence Accusation:", value=existing_vote.get("reason", ""))
+                    if st.form_submit_button("Lock In Vote 🕯️"):
                         if not reason.strip(): st.error("Please provide a short reason!")
                         else:
                             state["votes"].setdefault(vote_key, {})[selected_player] = {"target": target, "reason": reason.strip(), "timestamp": datetime.now().strftime("%H:%M")}
                             save_state(state)
-                            st.success(f"✅ Your single vote against **{target}** has been locked in!")
+                            st.success(f"✅ Vote against **{target}** recorded.")
     else:
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.**")
@@ -751,28 +752,26 @@ elif nav == "💀 Public Execution Room":
     st.markdown(f"### ⏳ Voting Closure Countdown: **{timers['voting_closes']}**")
     st.divider()
 
-    # Identify non-voters who are alive
-    alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-    voted_players = list(state["votes"].get(day_key, {}).keys())
-    non_voters = [p for p in alive_players if p not in voted_players]
+    manual_non_voters = state["non_voters"].setdefault(day_key, [])
 
-    if not non_voters:
-        st.success("✨ All surviving players have successfully cast their ballots! The execution chamber is empty.")
+    if not manual_non_voters:
+        st.success("✨ All surviving players successfully cast their votes! The execution chamber is empty.")
     else:
-        st.warning(f"⚠️ **{len(non_voters)} player(s) failed to vote within the window and face Public Execution:**")
-        for nv in non_voters:
+        st.warning(f"⚠️ **{len(manual_non_voters)} player(s) failed to vote and face Public Execution:**")
+        for nv in manual_non_voters:
             st.markdown(f"• 🩸 <b>{nv}</b>", unsafe_allow_html=True)
 
         st.divider()
         st.subheader("⚖️ Cast Your Execution Vote")
         
+        alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
         exec_voter = st.session_state.get("logged_in_player", alive_players[0] if alive_players else "")
         st.info(f"Voting as: **{exec_voter}**")
 
         pub_exec_votes = state["public_execution"].setdefault(day_key, {})
 
         with st.form("public_execution_form"):
-            exec_target = st.selectbox("Select guilty non-voter to execute:", non_voters)
+            exec_target = st.selectbox("Select guilty non-voter to execute:", manual_non_voters)
             exec_submit = st.form_submit_button("Send to the Gallows 🪓")
             if exec_submit:
                 pub_exec_votes[exec_voter] = exec_target
@@ -904,7 +903,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 8: HOST CONTROL CENTRE
+# TAB 8: HOST CONTROL CENTRE (WITH BACKUP & UPLOAD SANCTUARY)
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
@@ -912,7 +911,23 @@ elif nav == "👑 Host Control (Neilio)":
         st.success("Sanctuary unlocked.")
         
         st.markdown("---")
-        st.subheader("🕹️ Host Voting Phase Controls")
+        st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
+        
+        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
+        current_non_voters = state["non_voters"].setdefault(day_key, [])
+        
+        selected_non_voters = st.multiselect(
+            f"Select players who did NOT vote for {day_key}:",
+            options=alive_names,
+            default=current_non_voters
+        )
+        if st.button("💾 Save Non-Voters List"):
+            state["non_voters"][day_key] = selected_non_voters
+            save_state(state)
+            st.success("✅ Non-voters updated and sent to the Public Execution Room!")
+            st.rerun()
+
+        st.divider()
         c_v1, c_v2, c_v3 = st.columns(3)
         if c_v1.button("🟢 Start Voting Live"):
             state["voting_active"] = True
@@ -924,10 +939,10 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.warning("Voting has been paused.")
             st.rerun()
-        if c_v3.button("🔴 End Voting & Check Non-Voters"):
+        if c_v3.button("🔴 End Voting"):
             state["voting_active"] = False
             save_state(state)
-            st.info("Voting ended. Non-voters have been moved to the Public Execution Room.")
+            st.info("Voting ended.")
             st.rerun()
 
         st.markdown("---")
@@ -1024,3 +1039,44 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.success("Roster saved!")
             st.rerun()
+
+        st.markdown("---")
+        st.subheader("4. ☁️ Castle Vault Backup & Restore Sanctuary")
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+        
+        with b_col1:
+            json_bytes = json.dumps(state, indent=4).encode("utf-8")
+            st.download_button(
+                label="⬇️ Download Backup",
+                data=json_bytes,
+                file_name=f"castle_state_day_{state['current_day']}.json",
+                mime="application/json"
+            )
+            
+        with b_col2:
+            if st.button("🔄 Restore Last Checkpoint"):
+                if os.path.exists(BACKUP_FILE):
+                    with open(BACKUP_FILE, "r") as f:
+                        backup_state = json.load(f)
+                    with open(DATA_FILE, "w") as f:
+                        json.dump(backup_state, f, indent=4)
+                    st.success("✅ Castle restored to last checkpoint!")
+                    st.rerun()
+                else:
+                    st.warning("No backup checkpoint found.")
+
+        with b_col3:
+            if st.button("⚠️ Reset to Day 1 Defaults"):
+                reset_state = get_default_state()
+                save_state(reset_state)
+                st.warning("Castle reset to Day 1 defaults.")
+                st.rerun()
+
+        with b_col4:
+            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                if st.button("🔄 Confirm File Upload"):
+                    restored_state = json.load(uploaded_file)
+                    save_state(restored_state)
+                    st.success("✅ Vault successfully restored from uploaded file!")
+                    st.rerun()
