@@ -303,8 +303,9 @@ def get_default_state():
         "voting_matrix_unlocked": False,
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
-        "headline": "Welcome to Neilio's Castle! The Round Table is now in session.",
-        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nDebate theories in the chamber and cast your vote before the timer expires!",
+        "voting_active": True,  # Host control for voting live state
+        "headline": "Welcome to Neilio's Castle! The Round Table voting is now live.",
+        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nCast your vote before voting is closed by the Host!",
         "players": default_players,
         "votes": {},
         "fire_pit_votes": {},
@@ -322,25 +323,11 @@ def get_default_state():
             "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
         },
         "relics_vault_contents": {},
-        "relics_config": {
-            "riddles": {
-                "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
-                "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
-                "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
-                "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
-                "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
-                "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
-                "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
-                "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
-                "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
-                "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
-                "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
-                "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
-            }
-        },
+        "relics_config": {},
         "round_table_chat": {},
         "round_table_timers": {},
-        "round_table_tie_breaker": {}
+        "round_table_tie_breaker": {},
+        "public_execution": {}
     }
 
 def load_state():
@@ -355,8 +342,8 @@ def load_state():
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
-                "round_table_chat", "round_table_timers", "round_table_tie_breaker"]:
-        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key=="vault_room_open" else {}))
+                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "public_execution"]:
+        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active"] else {}))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -511,6 +498,8 @@ def render_player_portal_view(selected_player):
         st.subheader(f"🗳️ Round Table Ballot ({day_key})")
         if status not in ["Alive", "Undead"]:
             st.warning("👻 Ghosts cannot cast votes!")
+        elif not state.get("voting_active", True):
+            st.warning("🔒 **Voting is currently paused or closed by Host Neilio.** Stand by!")
         else:
             tie_data = state["round_table_tie_breaker"].get(day_key, {})
             is_tie_breaker = tie_data.get("active", False)
@@ -525,13 +514,13 @@ def render_player_portal_view(selected_player):
                 
                 with st.form(f"vote_form_{selected_player}_{vote_key}"):
                     target = st.selectbox("Who are you voting to BANISH?", alive_targets, index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0)
-                    reason = st.text_input("1-Sentence Accusation:", value=existing_vote.get("reason", ""))
-                    if st.form_submit_button("Lock In Vote 🕯️"):
+                    reason = st.text_input("1-Sentence Accusation (Recorded for audit):", value=existing_vote.get("reason", ""))
+                    if st.form_submit_button("Lock In One-Time Vote 🕯️"):
                         if not reason.strip(): st.error("Please provide a short reason!")
                         else:
                             state["votes"].setdefault(vote_key, {})[selected_player] = {"target": target, "reason": reason.strip(), "timestamp": datetime.now().strftime("%H:%M")}
                             save_state(state)
-                            st.success(f"✅ Vote against **{target}** recorded.")
+                            st.success(f"✅ Your single vote against **{target}** has been locked in!")
     else:
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.**")
@@ -622,7 +611,6 @@ st.sidebar.markdown(f"**High Host:** Neilio 👑")
 st.sidebar.markdown(f"**Current Day:** Day {state['current_day']} of 10")
 st.sidebar.markdown(f"**Current Phase:** `{state['phase']}`")
 
-# Display active player memory banner in sidebar if logged in
 if "logged_in_player" in st.session_state:
     st.sidebar.success(f"🔑 Logged in as: **{st.session_state['logged_in_player']}**")
     if st.sidebar.button("🔓 Logout"):
@@ -633,12 +621,11 @@ st.sidebar.divider()
 st.sidebar.markdown("### 🎵 Castle Atmosphere")
 enable_audio = st.sidebar.toggle("Play Theme Music 🎶", value=True)
 if enable_audio:
-    # Option to load your local music file (e.g. traitors_theme.mp3)
     audio_file_path = "traitors_theme.mp3"
     if os.path.exists(audio_file_path):
         st.sidebar.audio(audio_file_path, format="audio/mp3", loop=True, autoplay=True)
     else:
-        st.sidebar.caption("💡 Upload `traitors_theme.mp3` to your app folder to play custom music.")
+        st.sidebar.caption("💡 Upload `traitors_theme.mp3` to play custom music.")
 
 alive_count = sum(1 for p in state["players"].values() if str(p.get("status", "Alive")) in ["Alive", "Undead"])
 st.sidebar.metric("🟢 Survivors", f"{alive_count} / {len(state['players'])}")
@@ -648,6 +635,7 @@ st.sidebar.divider()
 nav_options = [
     "🏰 Castle Hall (Public)",
     "💬 Round Table Live Chat",
+    "💀 Public Execution Room",
     "🗳️ Player Portal (Vote & Role)",
     "💍 Chamber of Relics",
     "📊 The Voting Matrix",
@@ -697,7 +685,6 @@ if nav == "🏰 Castle Hall (Public)":
 elif nav == "💬 Round Table Live Chat":
     st.title("💬 Round Table Live Chat")
     
-    # Determine chat identity (Remembers logged-in player, or allows chatting as Host / Fallback)
     chat_options = ["👑 High Host Neilio"] + list(state["players"].keys())
     default_chat_idx = 0
     if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
@@ -751,7 +738,61 @@ elif nav == "💬 Round Table Live Chat":
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 3: PLAYER PORTAL
+# TAB 3: PUBLIC EXECUTION ROOM
+# ==========================================
+elif nav == "💀 Public Execution Room":
+    st.title("💀 The Public Execution Chamber")
+    st.markdown(
+        "> *\"Those who fail to cast their ballot before the Castle gates seal are branded as cowards and traitors to the realm. "
+        "The living must now vote to send a silent soul straight to the Ghost's gallows...\"*"
+    )
+
+    timers = state["round_table_timers"].get(day_key, {"voting_closes": "21:00"})
+    st.markdown(f"### ⏳ Voting Closure Countdown: **{timers['voting_closes']}**")
+    st.divider()
+
+    # Identify non-voters who are alive
+    alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
+    voted_players = list(state["votes"].get(day_key, {}).keys())
+    non_voters = [p for p in alive_players if p not in voted_players]
+
+    if not non_voters:
+        st.success("✨ All surviving players have successfully cast their ballots! The execution chamber is empty.")
+    else:
+        st.warning(f"⚠️ **{len(non_voters)} player(s) failed to vote within the window and face Public Execution:**")
+        for nv in non_voters:
+            st.markdown(f"• 🩸 <b>{nv}</b>", unsafe_allow_html=True)
+
+        st.divider()
+        st.subheader("⚖️ Cast Your Execution Vote")
+        
+        exec_voter = st.session_state.get("logged_in_player", alive_players[0] if alive_players else "")
+        st.info(f"Voting as: **{exec_voter}**")
+
+        pub_exec_votes = state["public_execution"].setdefault(day_key, {})
+
+        with st.form("public_execution_form"):
+            exec_target = st.selectbox("Select guilty non-voter to execute:", non_voters)
+            exec_submit = st.form_submit_button("Send to the Gallows 🪓")
+            if exec_submit:
+                pub_exec_votes[exec_voter] = exec_target
+                save_state(state)
+                st.success(f"✅ Your vote to execute **{exec_target}** has been recorded!")
+
+        st.markdown("---")
+        st.subheader("📊 Live Execution Tally Board")
+        tally = {}
+        for v in pub_exec_votes.values():
+            tally[v] = tally.get(v, 0) + 1
+
+        if tally:
+            for target, count in tally.items():
+                st.markdown(f"• 🪓 **{target}**: `{count} vote(s)`")
+        else:
+            st.info("No execution votes cast yet.")
+
+# ==========================================
+# TAB 4: PLAYER PORTAL
 # ==========================================
 elif nav == "🗳️ Player Portal (Vote & Role)":
     st.title("🗝️ The Secret Chamber Portal")
@@ -790,7 +831,7 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
         st.info("💡 Enter your 4-digit PIN above to unlock your portal and lock in your identity across the Castle.")
 
 # ==========================================
-# TAB 4: CHAMBER OF RELICS
+# TAB 5: CHAMBER OF RELICS
 # ==========================================
 elif nav == "💍 Chamber of Relics":
     st.title("💍 The Alchemist's Chamber of Relics")
@@ -834,7 +875,7 @@ elif nav == "💍 Chamber of Relics":
                             st.rerun()
 
 # ==========================================
-# TAB 5: VOTING MATRIX
+# TAB 6: VOTING MATRIX
 # ==========================================
 elif nav == "📊 The Voting Matrix":
     st.title("📊 The Castle Archives: Voting Matrix")
@@ -847,7 +888,7 @@ elif nav == "📊 The Voting Matrix":
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 # ==========================================
-# TAB 6: THE GRAND REVEAL (FINALE)
+# TAB 7: THE GRAND REVEAL (FINALE)
 # ==========================================
 elif nav == "🏆 The Grand Reveal (4PM Finale)":
     st.title("🏆 The Grand Finale & Ultimate Reveal")
@@ -863,7 +904,7 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 7: HOST CONTROL CENTRE (WITH GOD MODE VIEWPORT)
+# TAB 8: HOST CONTROL CENTRE
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
@@ -871,14 +912,48 @@ elif nav == "👑 Host Control (Neilio)":
         st.success("Sanctuary unlocked.")
         
         st.markdown("---")
-        st.subheader("👁️ Host God Mode: Player Portal Preview")
-        god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
-        with st.expander(f"🔮 Active God Mode Viewport: {god_mode_player}", expanded=True):
-            render_player_portal_view(god_mode_player)
+        st.subheader("🕹️ Host Voting Phase Controls")
+        c_v1, c_v2, c_v3 = st.columns(3)
+        if c_v1.button("🟢 Start Voting Live"):
+            state["voting_active"] = True
+            save_state(state)
+            st.success("Voting is now live for all players!")
+            st.rerun()
+        if c_v2.button("⏸️ Pause Voting"):
+            state["voting_active"] = False
+            save_state(state)
+            st.warning("Voting has been paused.")
+            st.rerun()
+        if c_v3.button("🔴 End Voting & Check Non-Voters"):
+            state["voting_active"] = False
+            save_state(state)
+            st.info("Voting ended. Non-voters have been moved to the Public Execution Room.")
+            st.rerun()
 
         st.markdown("---")
-        st.subheader("⚖️ Vote Tally Controls")
-        if st.button("⚖️ Tally Votes & Check for Ties"):
+        st.subheader("👻 Execute Non-Voter (Ghost Strike)")
+        if st.button("🪓 Tally Execution Votes & Execute Most Voted"):
+            pub_exec_votes = state["public_execution"].get(day_key, {})
+            tally = {}
+            for v in pub_exec_votes.values():
+                tally[v] = tally.get(v, 0) + 1
+            if tally:
+                max_v = max(tally.values())
+                top_t = [t for t, c in tally.items() if c == max_v]
+                if len(top_t) > 1:
+                    st.error(f"⚖️ **TIE DETECTED IN EXECUTION:** Between: {', '.join(top_t)}. Automatic re-vote required!")
+                else:
+                    victim = top_t[0]
+                    state["players"][victim]["status"] = "Executed (No Vote Penalty)"
+                    state["players"][victim]["eliminated_day"] = day_key
+                    save_state(state)
+                    st.error(f"👻 **GHOST STRIKE!** {victim} received {max_v} execution votes and has been instantly struck down by the Ghost!")
+            else:
+                st.warning("No execution votes recorded.")
+
+        st.markdown("---")
+        st.subheader("⚖️ Round Table Vote Tally Controls")
+        if st.button("⚖️ Tally Round Table Votes & Check for Ties"):
             tie_data = state["round_table_tie_breaker"].setdefault(day_key, {})
             v_key = f"{day_key}_tie" if tie_data.get("active", False) else day_key
             tally = {}
