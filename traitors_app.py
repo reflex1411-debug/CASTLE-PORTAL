@@ -210,18 +210,36 @@ def get_default_state():
             "claimed_items": []
         }
 
+    default_curses = {}
+    default_riddles = {}
+    for d_num in range(1, 13):
+        default_curses[f"Day {d_num}"] = {
+            "boxes": ["3", "7", "12", "15", "19"],
+            "items": [
+                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+            ]
+        }
+        default_riddles[f"Day {d_num}"] = {
+            "question": f"Day {d_num}: I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
+            "answer": "wish"
+        }
+
     return {
         "current_day": 1,
         "fire_pit_round": 1,
-        "phase": "24-Hour Asynchronous Window",
+        "phase": "Round Table Voting",
         "prize_pot": 100,
         "traitor_pot": 0,
         "vault_room_open": True,
         "voting_matrix_unlocked": False,
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
-        "headline": "Welcome to Neilio's Castle! The 24-hour asynchronous window is open. Check your role and vote whenever you have a break.",
-        "mission_text": "🏆 **MISSION 1: TWO TRUTHS & AN ALIBI**\nPost two true facts and one lie in the WhatsApp chat over the next 24 hours!",
+        "headline": "Welcome to Neilio's Castle! The Round Table is now in session.",
+        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nDebate theories and cast your vote before the timer expires!",
         "players": default_players,
         "votes": {},
         "fire_pit_votes": {},
@@ -231,47 +249,20 @@ def get_default_state():
         "vault_attempts": {},
         "vault_riddle_solved": {},
         "vault_recent_open": {},  
-        "custom_curses": {
-            "Day 1": {
-                "boxes": ["3", "7", "12", "15", "19"],
-                "items": [
-                    {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
-                    {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
-                    {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
-                    {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
-                    {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
-                ]
-            }
-        },
-        "vault_riddles": {
-            "Day 1": {
-                "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
-                "answer": "wish"
-            }
-        },
+        "custom_curses": default_curses,
+        "vault_riddles": default_riddles,
         "vault_config": {
             "shields_count": 2,
             "prize_points_value": 25,
             "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
         },
-        # --- CHAMBER OF RELICS CONFIG ---
         "relics_vault_contents": {},
-        "relics_config": {
-            "riddles": {
-                "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
-                "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
-                "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
-                "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
-                "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
-                "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
-                "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
-                "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
-                "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
-                "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
-                "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
-                "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
-            }
-        }
+        "relics_config": {},
+        # --- ROUND TABLE STATE ---
+        "round_table_seating": {},
+        "round_table_chat": {},
+        "round_table_timers": {},
+        "round_table_tie_breaker": {}
     }
 
 def load_state():
@@ -294,45 +285,17 @@ def load_state():
     state.setdefault("traitor_vote_locked", False)
     state.setdefault("chamber_of_relics_locked", True)
     state.setdefault("relics_vault_contents", {})
-    state.setdefault("custom_curses", {
-        "Day 1": {
-            "boxes": ["3", "7", "12", "15", "19"],
-            "items": [
-                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
-                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
-                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
-                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
-                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
-            ]
-        }
-    })
-    state.setdefault("vault_riddles", {
-        "Day 1": {
-            "question": "I have multiple faces, but I hide my breath. One holds salvation, the rest hold emptiness. To touch the iron doors and test your fate, you must first name the symbol of my estate. What word am I, spoken when the dandelions blow?",
-            "answer": "wish"
-        }
-    })
-    state.setdefault("vault_config", {
-        "shields_count": 2,
-        "prize_points_value": 25,
-        "relics_list": "Rusted Iron Key, Moth-Eaten Tapestry Fragment, Dusty Tome of Spells, Broken Dagger, Empty Urn, Tarnished Silver Chalice, Heavy Iron Shackles"
-    })
-    state.setdefault("relics_config", {
-        "riddles": {
-            "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
-            "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
-            "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
-            "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
-            "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
-            "Box 6": {"name": "🍷 Poisoned Chalice Ring", "clue": "Drink deep of my fortune or swallow my pain—I double your glory or double your bane. A gamble of silver, a wager of gold, the sweetest of lies or the bitterest cold.", "answer": "chalice, poison, cup"},
-            "Box 7": {"name": "🔮 Whispering Locket", "clue": "Open my casing and press to your ear, I carry the echoes of what they held dear. Secrets and shadows are locked in my brass—peek through the keyhole and watch the truth pass.", "answer": "locket, whisper, brass"},
-            "Box 8": {"name": "⛓️ Iron Shackles Bracelet", "clue": "Two wrists bound together by iron and rust, a shared fate of peril, a compact of trust. If your partner falls victim to blade or to stone, you carry the heavy affliction alone.", "answer": "shackles, iron, handcuffs"},
-            "Box 9": {"name": "🪶 Phoenix Feather Brooch", "clue": "Burned to a cinder and cast in the ash, I rise from the ruin in one sudden flash. Death may knock loudly and rattle the gate, but I am the stitch that rewrites your dark fate.", "answer": "phoenix, feather, ash"},
-            "Box 10": {"name": "🃏 Jester’s Gold Tooth", "clue": "I grin from the dark with a flash and a gleam, turning reality into a scheme. Touch me and swap what you hold in your hand—the richest of rulers, the poorest of land.", "answer": "jester, tooth, gold"},
-            "Box 11": {"name": "🪞 Mirror of Vanity", "clue": "I reflect not your face, but the fog in the hall; I blank out your name on the great castle wall. A ghost in the numbers, a blur in the light—who hides in the shadows of vanity's night?", "answer": "mirror, vanity, reflection"},
-            "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
-        }
-    })
+    state.setdefault("round_table_seating", {})
+    state.setdefault("round_table_chat", {})
+    state.setdefault("round_table_timers", {})
+    state.setdefault("round_table_tie_breaker", {})
+    
+    default_state = get_default_state()
+    state.setdefault("custom_curses", default_state["custom_curses"])
+    state.setdefault("vault_riddles", default_state["vault_riddles"])
+    state.setdefault("vault_config", default_state["vault_config"])
+    state.setdefault("relics_config", default_state["relics_config"])
+
     for p in state.get("players", {}).values():
         p["role"] = str(p.get("role", "Faithful"))
         p["status"] = str(p.get("status", "Alive"))
@@ -437,7 +400,7 @@ def initialize_vault_boxes(day_k, total_boxes, config):
 
 def initialize_relics_boxes():
     boxes = {}
-    riddles_dict = state["relics_config"]["riddles"]
+    riddles_dict = state["relics_config"].get("riddles", {})
     box_keys = list(riddles_dict.keys())
     for b_key in box_keys:
         r_info = riddles_dict[b_key]
@@ -448,6 +411,15 @@ def initialize_relics_boxes():
             "opened_by": ""
         }
     return boxes
+
+def assign_round_table_seats():
+    alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
+    random.shuffle(alive_players)
+    seating = {}
+    for idx, player in enumerate(alive_players, start=1):
+        seating[f"Seat {idx}"] = player
+    state["round_table_seating"][day_key] = seating
+    save_state(state)
 
 def render_player_portal_view(selected_player):
     p_info = state["players"][selected_player]
@@ -511,40 +483,43 @@ def render_player_portal_view(selected_player):
         if status != "Alive" and status != "Undead":
             st.warning("👻 Ghosts cannot cast votes at the Round Table!")
         else:
-            alive_targets = [
-                name for name, d in state["players"].items() 
-                if str(d.get("status", "Alive")) in ["Alive", "Undead"] and name != selected_player
-            ]
-            existing_vote = state["votes"].get(day_key, {}).get(selected_player, {})
-            
-            if existing_vote:
-                st.info("ℹ️ You have already cast a vote today. Submitting again will update your ballot.")
+            tie_data = state["round_table_tie_breaker"].get(day_key, {})
+            is_tie_breaker = tie_data.get("active", False)
+            tied_players = tie_data.get("tied_players", [])
 
-            with st.form(f"vote_form_{selected_player}"):
-                target = st.selectbox(
-                    "Who are you voting to BANISH from the Castle?", 
-                    alive_targets,
-                    index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0
-                )
-                reason = st.text_input(
-                    "1-Sentence Accusation (read aloud at Breakfast):",
-                    value=existing_vote.get("reason", "")
-                )
-                submitted = st.form_submit_button("Seal My Fate & Lock In Vote 🕯️")
-                if submitted:
-                    if not reason.strip():
-                        st.error("Please provide a short 1-sentence reason for your vote!")
-                    else:
-                        state["votes"].setdefault(day_key, {})[selected_player] = {
-                            "target": target,
-                            "reason": reason.strip(),
-                            "timestamp": datetime.now().strftime("%H:%M")
-                        }
-                        save_state(state)
-                        st.success(f"✅ Your vote to banish **{target}** has been recorded in the shadows.")
+            if is_tie_breaker and selected_player in tied_players:
+                st.error("⚖️ **SUDDEN DEATH RE-VOTE:** You were tied in the initial ballot and are **barred** from voting in this tie-breaker. Watch from the shadows!")
+            else:
+                alive_targets = [
+                    name for name, d in state["players"].items() 
+                    if str(d.get("status", "Alive")) in ["Alive", "Undead"] and name != selected_player
+                ]
+                
+                vote_storage_key = f"{day_key}_tie" if is_tie_breaker else day_key
+                existing_vote = state["votes"].get(vote_storage_key, {}).get(selected_player, {})
+                
+                if existing_vote:
+                    st.info("ℹ️ You have already cast your ballot. Submitting again will update your choice.")
+
+                with st.form(f"vote_form_{selected_player}_{vote_storage_key}"):
+                    ballot_title = "⚖️ SUDDEN DEATH: Who are you voting to BANISH?" if is_tie_breaker else "Who are you voting to BANISH from the Castle?"
+                    target = st.selectbox(ballot_title, alive_targets, index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0)
+                    reason = st.text_input("1-Sentence Accusation / Defense:", value=existing_vote.get("reason", ""))
+                    submitted = st.form_submit_button("Seal My Fate & Lock In Vote 🕯️")
+                    if submitted:
+                        if not reason.strip():
+                            st.error("Please provide a short 1-sentence reason!")
+                        else:
+                            state["votes"].setdefault(vote_storage_key, {})[selected_player] = {
+                                "target": target,
+                                "reason": reason.strip(),
+                                "timestamp": datetime.now().strftime("%H:%M")
+                            }
+                            save_state(state)
+                            st.success(f"✅ Your vote against **{target}** has been recorded.")
     else:
         st.subheader("🗳️ Round Table Ballot")
-        st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open. Stand by in the Great Hall!")
+        st.info("🔒 **The Round Table is currently sealed.** High Host Neilio has not yet decreed that voting is open.")
 
     # --- VAULT OF SAFETY DEPOSIT BOXES CHALLENGE ---
     st.divider()
@@ -559,7 +534,7 @@ def render_player_portal_view(selected_player):
     total_boxes = alive_count * 3
     
     vault_contents = state["vault_contents"].setdefault(day_key, {})
-    if not vault_contents or len(vault_contents) != total_boxes:
+    if not vault_contents:
         state["vault_contents"][day_key] = initialize_vault_boxes(day_key, total_boxes, state["vault_config"])
         save_state(state)
         vault_contents = state["vault_contents"][day_key]
@@ -578,7 +553,7 @@ def render_player_portal_view(selected_player):
     if status != "Alive" and status != "Undead":
         st.warning("👻 Ghosts cannot tamper with the Safety Deposit Vault!")
     else:
-        st.markdown(f"**Active Wall:** `{total_boxes}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
+        st.markdown(f"**Active Wall:** `{len(vault_contents)}` Deposit Boxes | **Your Attempts Today:** `{player_attempts} / 3 used`")
         
         recent_open = state.get("vault_recent_open", {}).get(selected_player)
         if recent_open and recent_open.get("day") == day_key:
@@ -604,14 +579,11 @@ def render_player_portal_view(selected_player):
                         st.success("🔓 Correct! The gatekeeper unlocks the Wall of Safety Deposit Boxes.")
                         st.rerun()
                     else:
-                        st.error("❌ Incorrect answer. The vault remains sealed. Consult the whispers in the Castle and try again.")
+                        st.error("❌ Incorrect answer. The vault remains sealed.")
         else:
-            st.success("🔓 Gatekeeper Riddle Solved! You have keys to select up to 3 closed boxes on the wall.")
-            st.markdown("### 🏦 Step 2: Select a Box from the Wall Below")
-            st.caption("Boxes marked as **Opened** have already been claimed by travelers and cannot be accessed.")
-
+            st.success("🔓 Gatekeeper Riddle Solved! Select up to 3 closed boxes on the wall.")
             if player_attempts >= 3:
-                st.warning("⏳ You have used all 3 of your box selections for today. Return tomorrow or await the dawn!")
+                st.warning("⏳ You have used all 3 of your box selections for today.")
             else:
                 cols_per_row = 5
                 box_keys = sorted(vault_contents.keys(), key=int)
@@ -621,54 +593,56 @@ def render_player_portal_view(selected_player):
                     for idx, b_key in enumerate(row_keys):
                         b_data = vault_contents[b_key]
                         with cols[idx]:
+                            unique_box_btn_key = f"btn_box_{day_key}_{selected_player}_{b_key}"
                             if b_data["opened"]:
-                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=f"btn_box_{day_key}_{b_key}")
+                                st.button(f"🔒 #{b_key}\n(Opened)", disabled=True, key=unique_box_btn_key)
                             else:
-                                if st.button(f"📦 Box #{b_key}", key=f"btn_box_{day_key}_{b_key}"):
-                                    vault_contents[b_key]["opened"] = True
-                                    vault_contents[b_key]["opened_by"] = selected_player
-                                    state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
-                                    
-                                    claim_record = {
-                                        "day": day_key,
-                                        "box": f"Box #{b_key}",
-                                        "desc": b_data["desc"],
-                                        "time": datetime.now().strftime("%H:%M")
-                                    }
-                                    state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
-                                    
-                                    state.setdefault("vault_recent_open", {})[selected_player] = {
-                                        "day": day_key,
-                                        "box": b_key,
-                                        "type": b_data["type"],
-                                        "desc": b_data["desc"]
-                                    }
-                                    
-                                    if b_data["type"] == "Shield":
-                                        state["players"][selected_player]["shield"] = True
-                                    elif b_data["type"] == "Points":
-                                        pts = b_data["value"]
-                                        state["prize_pot"] += pts 
-                                    elif b_data["type"] == "Curse":
-                                        toxicity = b_data.get("toxicity", "Moderately Toxic")
-                                        target_role = b_data.get("target_role", "All")
-                                        is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
+                                if st.button(f"📦 Box #{b_key}", key=unique_box_btn_key):
+                                    if not vault_contents[b_key]["opened"]:
+                                        vault_contents[b_key]["opened"] = True
+                                        vault_contents[b_key]["opened_by"] = selected_player
+                                        state["vault_attempts"].setdefault(day_key, {})[selected_player] = player_attempts + 1
                                         
-                                        if target_role == "Traitor" and not is_traitor:
-                                            b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
-                                        else:
-                                            if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
-                                                state["players"][selected_player]["status"] = "Murdered"
-                                                state["players"][selected_player]["eliminated_day"] = day_key
-                                            elif toxicity == "Highly Toxic":
-                                                state["prize_pot"] = max(0, state["prize_pot"] - 100)
-                                            elif toxicity == "Moderately Toxic":
-                                                state["prize_pot"] = max(0, state["prize_pot"] - 50)
-                                            else: 
-                                                state["prize_pot"] = max(0, state["prize_pot"] - 25)
+                                        claim_record = {
+                                            "day": day_key,
+                                            "box": f"Box #{b_key}",
+                                            "desc": b_data["desc"],
+                                            "time": datetime.now().strftime("%H:%M")
+                                        }
+                                        state["players"][selected_player].setdefault("claimed_items", []).append(claim_record)
+                                        
+                                        state.setdefault("vault_recent_open", {})[selected_player] = {
+                                            "day": day_key,
+                                            "box": b_key,
+                                            "type": b_data["type"],
+                                            "desc": b_data["desc"]
+                                        }
+                                        
+                                        if b_data["type"] == "Shield":
+                                            state["players"][selected_player]["shield"] = True
+                                        elif b_data["type"] == "Points":
+                                            pts = b_data["value"]
+                                            state["prize_pot"] += pts 
+                                        elif b_data["type"] == "Curse":
+                                            toxicity = b_data.get("toxicity", "Moderately Toxic")
+                                            target_role = b_data.get("target_role", "All")
+                                            is_traitor = "Traitor" in str(state["players"][selected_player].get("role", ""))
+                                            
+                                            if target_role == "Traitor" and not is_traitor:
+                                                b_data["desc"] = "🛡️ Safe! This cursed trap was meant for Traitors, and you are a Faithful!"
+                                            else:
+                                                if toxicity == "Instant Death" or (target_role == "Traitor" and is_traitor):
+                                                    state["players"][selected_player]["status"] = "Murdered"
+                                                    state["players"][selected_player]["eliminated_day"] = day_key
+                                                elif toxicity == "Highly Toxic":
+                                                    state["prize_pot"] = max(0, state["prize_pot"] - 100)
+                                                elif toxicity == "Moderately Toxic":
+                                                    state["prize_pot"] = max(0, state["prize_pot"] - 50)
+                                                else: 
+                                                    state["prize_pot"] = max(0, state["prize_pot"] - 25)
 
-                                    save_state(state)
-                                    st.rerun()
+                                        save_state(state)
+                                        st.rerun()
 
     # --- TRAITOR TURRET ACCESS SECTION ---
     if "Traitor" in role and status in ["Alive", "Undead"]:
@@ -681,7 +655,7 @@ def render_player_portal_view(selected_player):
         st.markdown(f"**Surviving Traitors in the Turret:** {', '.join(fellow_traitors)} | **Traitor Pot:** `{state['traitor_pot']} pts`")
         
         if state.get("traitor_vote_locked", False):
-            st.error("🔒 **THE TURRET DOORS ARE BARRED!** High Host Neilio has locked Traitor voting for the night. No further bloodshed or coordination is permitted.")
+            st.error("🔒 **THE TURRET DOORS ARE BARRED!** High Host Neilio has locked Traitor voting for the night.")
         else:
             faithful_targets = [
                 n for n, d in state["players"].items()
@@ -698,8 +672,6 @@ def render_player_portal_view(selected_player):
             existing_user_noms = turret_noms.get(selected_player, {})
             with st.form(f"turret_noms_form_{selected_player}"):
                 st.markdown("### 🎯 Submit Your Top 3 Murder Preferences")
-                st.caption("Select up to 3 possible Faithful victims in order of priority for tonight's discussion.")
-                
                 def_1st = existing_user_noms.get("1st", faithful_targets[0] if faithful_targets else "")
                 def_2nd = existing_user_noms.get("2nd", faithful_targets[1] if len(faithful_targets) > 1 else (faithful_targets[0] if faithful_targets else ""))
                 def_3rd = existing_user_noms.get("3rd", faithful_targets[2] if len(faithful_targets) > 2 else (faithful_targets[0] if faithful_targets else ""))
@@ -716,30 +688,7 @@ def render_player_portal_view(selected_player):
                         "3rd": opt_3rd
                     }
                     save_state(state)
-                    st.success("✅ Your 3 target preferences have been shared with your fellow Traitors in the Turret.")
-                    st.rerun()
-
-            st.markdown("---")
-            st.subheader("⚖️ Unanimous Murder Decree")
-            current_murder = state["unanimous_murder"].get(day_key, "")
-            if current_murder:
-                st.error(f"🩸 **UNANIMOUS MURDER LOCKED IN:** **{current_murder}** will not see the light of breakfast tomorrow!")
-            
-            if faithful_targets:
-                unanimous_choice = st.selectbox("Select Unanimous Murder Victim (Agreed upon by Traitors):", faithful_targets, key=f"unanimous_sel_{selected_player}")
-                col_lock, col_reset = st.columns(2)
-                if col_lock.button("🔒 Lock In Unanimous Murder Victim 💀", key=f"lock_murder_{selected_player}"):
-                    state["unanimous_murder"][day_key] = unanimous_choice
-                    save_state(state)
-                    st.success(f"🩸 Murder decree sealed! **{unanimous_choice}** has been marked for death.")
-                    st.rerun()
-                if col_reset.button("🔄 Reset Turret", key=f"reset_turret_{selected_player}"):
-                    if day_key in state["turret_nominations"]:
-                        del state["turret_nominations"][day_key]
-                    if day_key in state["unanimous_murder"]:
-                        del state["unanimous_murder"][day_key]
-                    save_state(state)
-                    st.warning("⚠️ Turret nominations and unanimous murder choice have been reset for tonight.")
+                    st.success("✅ Your 3 target preferences have been shared with your fellow Traitors.")
                     st.rerun()
 
 # ==========================================
@@ -757,6 +706,7 @@ st.sidebar.metric("🏆 Faithful Prize Pot", f"{state['prize_pot']} pts")
 st.sidebar.divider()
 nav_options = [
     "🏰 Castle Hall (Public)",
+    "🪑 The Round Table Room",
     "🗳️ Player Portal (Vote & Role)",
     "💍 Chamber of Relics",
     "📊 The Voting Matrix",
@@ -772,30 +722,13 @@ if nav == "🏰 Castle Hall (Public)":
     st.title("🏰 The Great Hall of Shadows")
     st.info(f"📢 **DECREE FROM HOST NEILIO:** {state['headline']}")
 
-    st.markdown(
-        '<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2550/2550-preview.mp3" type="audio/mp3"></audio>',
-        unsafe_allow_html=True
-    )
-
     if is_finale_unlocked:
-        st.success("🏆 **THE GRAND FINALE IS LIVE!** Click **'🏆 The Grand Reveal (4PM Finale)'** in the sidebar to see who won and unmask every player!")
+        st.success("🏆 **THE GRAND FINALE IS LIVE!** Click **'🏆 The Grand Reveal (4PM Finale)'** in the sidebar.")
     elif state["phase"] == "The Fire Pit (Endgame)":
-        st.error(f"🔥 **THE FIRE PIT IS LIT (Round {state['fire_pit_round']})!** Head to the Player Portal to cast your final pouch.")
+        st.error(f"🔥 **THE FIRE PIT IS LIT (Round {state['fire_pit_round']})!** Head to the Player Portal.")
 
     with st.expander("📜 Today's Daily Mission / Asynchronous Rules", expanded=True):
         st.markdown(state["mission_text"])
-
-    with st.expander("🏦 Safety Deposit Vault: Claimed Prizes Ledger", expanded=False):
-        st.markdown("Here is the anonymous ledger of all prizes claimed from the Safety Deposit Boxes across all days:")
-        any_claims = False
-        for d_key, contents in state.get("vault_contents", {}).items():
-            for b_id, b_info in contents.items():
-                if b_info.get("opened") and b_info.get("type") in ["Shield", "Points", "Curse"]:
-                    any_claims = True
-                    claimer_name = b_info.get("opened_by", "A Traveler")
-                    st.write(f"• **{d_key} (Box #{b_id})**: Claimed **{b_info['desc']}** by *{claimer_name}*")
-        if not any_claims:
-            st.write("No Shields, Curses, or Prize Points have been claimed from the vault yet. The boxes await...")
 
     st.subheader("🖼️ Portraits on the Great Hall Wall")
     players_list = list(state["players"].items())
@@ -847,12 +780,94 @@ if nav == "🏰 Castle Hall (Public)":
         col.markdown(card_html, unsafe_allow_html=True)
 
 # ==========================================
-# TAB 2: PLAYER PORTAL
+# TAB: THE ROUND TABLE ROOM (CONCEPT A)
+# ==========================================
+elif nav == "🪑 The Round Table Room":
+    st.title("🪑 The Great Round Table Chamber")
+    st.markdown(
+        "> *\"We gather in the flickering candlelight around the circular oak. Eyes meet eyes, accusations are hurled, "
+        "and secrets hang in the balance. Take your assigned seat, state your truth, and prepare for the ballot.\"*"
+    )
+
+    # 1. Timers & Countdowns Section
+    st.subheader("⏳ Round Table Countdowns")
+    timers = state["round_table_timers"].setdefault(day_key, {
+        "voting_opens": "2026-10-24 18:00",
+        "voting_closes": "2026-10-24 21:00"
+    })
+    t_col1, t_col2 = st.columns(2)
+    t_col1.markdown(f"""
+    <div class="award-card">
+        <div style="font-size: 22px;">🟢 Voting Opens At</div>
+        <div style="font-size: 18px; color: #5c1d1d; margin-top: 6px;"><b>{timers['voting_opens']}</b></div>
+    </div>
+    """, unsafe_allow_html=True)
+    t_col2.markdown(f"""
+    <div class="award-card">
+        <div style="font-size: 22px;">🔴 Voting Closes At</div>
+        <div style="font-size: 18px; color: #5c1d1d; margin-top: 6px;"><b>{timers['voting_closes']}</b></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # 2. Circular Seating Chart Display
+    st.subheader("🪑 The Circular Seating Arrangement")
+    seating = state["round_table_seating"].get(day_key, {})
+    if not seating:
+        st.info("The seating chart has not yet been shuffled for today. Host Neilio can assign seats in the Host Control tab!")
+    else:
+        seat_cols = st.columns(4)
+        for idx, (seat_name, occupant) in enumerate(seating.items()):
+            col = seat_cols[idx % 4]
+            pdata = state["players"].get(occupant, {})
+            photo_url = pdata.get("photo", "")
+            avatar = f'<img src="{photo_url}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #c5a059;" />' if photo_url else '🛡️'
+            col.markdown(f"""
+            <div class="player-card" style="padding: 10px;">
+                <div style="font-size: 12px; color: #c5a059; font-weight: bold;">{seat_name}</div>
+                <div style="margin: 4px 0;">{avatar}</div>
+                <div style="font-weight: bold; font-size: 14px;">{occupant}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # 3. Discussion Chamber (Live Accusation Chat)
+    st.subheader("💬 Round Table Accusation & Theory Stream")
+    chat_messages = state["round_table_chat"].setdefault(day_key, [])
+
+    with st.form("rt_chat_form", clear_on_submit=True):
+        ch_col1, ch_col2 = st.columns([1, 3])
+        chat_author = ch_col1.selectbox("Posting As:", list(state["players"].keys()), key="rt_chat_author")
+        chat_text = ch_col2.text_input("State your accusation or defense theory:")
+        chat_submit = st.form_submit_button("Publish to Round Table 📜")
+        if chat_submit:
+            if chat_text.strip():
+                chat_messages.append({
+                    "author": chat_author,
+                    "text": chat_text.strip(),
+                    "time": datetime.now().strftime("%H:%M")
+                })
+                save_state(state)
+                st.rerun()
+
+    st.markdown("---")
+    if chat_messages:
+        for msg in reversed(chat_messages[-15:]):
+            st.markdown(f"""
+            <div style="background: #ffffff; border: 1px solid #c5a059; border-radius: 6px; padding: 10px; margin-bottom: 8px;">
+                <b>{msg['author']}</b> <span style="font-size: 11px; color: #7a756b;">({msg['time']})</span>: {msg['text']}
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("The chamber is silent. Be the first to cast suspicion across the table...")
+
+# ==========================================
+# TAB: PLAYER PORTAL
 # ==========================================
 elif nav == "🗳️ Player Portal (Vote & Role)":
     st.title("🗝️ The Secret Chamber Portal")
-    st.caption("Select your name and enter your personal 4-digit PIN to consult the shadows, inspect for Shields, or cast your ballot within the 24-hour window.")
-
     col1, col2 = st.columns(2)
     selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()))
     entered_pin = col2.text_input("Enter Your 4-Digit PIN", type="password")
@@ -860,43 +875,20 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
     if entered_pin:
         p_info = state["players"][selected_player]
         if entered_pin != str(p_info.get("pin", "")):
-            st.error("❌ Incorrect PIN. Speak in whispers with Host Neilio if you forgot your credentials.")
+            st.error("❌ Incorrect PIN.")
         else:
-            st.success(f"Welcome back to the shadows, **{selected_player}**.")
-            
-            with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
-                uploaded_file = st.file_uploader("Choose a photo of yourself (JPEG/PNG)", type=["jpg", "jpeg", "png"])
-                if uploaded_file is not None:
-                    bytes_data = uploaded_file.getvalue()
-                    base64_encoded = base64.b64encode(bytes_data).decode("utf-8")
-                    p_info["photo"] = f"data:image/jpeg;base64,{base64_encoded}"
-                    save_state(state)
-                    st.success("✨ Your portrait has been hung in the Great Hall!")
-                    st.rerun()
-                if p_info.get("photo"):
-                    st.image(p_info["photo"], width=100, caption="Current Portrait")
-
+            st.success(f"Welcome back, **{selected_player}**.")
             render_player_portal_view(selected_player)
 
 # ==========================================
-# TAB 3: CHAMBER OF RELICS
+# TAB: CHAMBER OF RELICS
 # ==========================================
 elif nav == "💍 Chamber of Relics":
     st.title("💍 The Alchemist's Chamber of Relics")
-    
     if state.get("chamber_of_relics_locked", True):
         st.warning("🔒 **THE CHAMBER OF RELICS IS SEALED!**")
-        st.markdown(
-            "> *\"Rely not on mere whispers, traveler. Behind these iron doors lie ancient rings, cursed amulets, "
-            "and forgotten relics. The gatekeeper's lock remains firmly barred until High Host Neilio decrees the opening.\"*"
-        )
     else:
-        st.markdown(
-            "🕯️⛓️ *Beyond the heavy iron gates lies the Chamber of Relics. "
-            "Velvet shelves hold ancient treasures that can bend the course of our fate: bands of unyielding iron "
-            "that compel the truth, and spiked crests fashioned to turn away blades in the dark. Test your wits against the riddles within...*"
-        )
-        
+        st.markdown("Test your wits against the riddles within...")
         col_p_sel, col_p_pin = st.columns(2)
         r_player = col_p_sel.selectbox("Select Your Name for Relic Claim", list(state["players"].keys()), key="relic_player_sel")
         r_pin = col_p_pin.text_input("Enter Your 4-Digit PIN", type="password", key="relic_pin_sel")
@@ -905,11 +897,7 @@ elif nav == "💍 Chamber of Relics":
             p_dat = state["players"][r_player]
             if r_pin != str(p_dat.get("pin", "")):
                 st.error("❌ Incorrect PIN.")
-            elif str(p_dat.get("status", "")) not in ["Alive", "Undead"]:
-                st.warning("👻 Ghosts cannot claim items from the Chamber of Relics!")
             else:
-                st.success(f"Authenticated as **{r_player}**.")
-                
                 relics_contents = state["relics_vault_contents"]
                 if not relics_contents:
                     state["relics_vault_contents"] = initialize_relics_boxes()
@@ -917,400 +905,101 @@ elif nav == "💍 Chamber of Relics":
                     relics_contents = state["relics_vault_contents"]
                 
                 solved_dict = state.setdefault("relics_riddle_solved", {}).setdefault(r_player, {})
-                
                 box_keys = sorted(relics_contents.keys(), key=lambda x: int(x.replace("Box ", "")))
-                cols_per_row = 3
-                for i in range(0, len(box_keys), cols_per_row):
-                    row_keys = box_keys[i:i + cols_per_row]
-                    cols = st.columns(cols_per_row)
-                    for idx, b_key in enumerate(row_keys):
-                        b_info = relics_contents[b_key]
-                        with cols[idx]:
-                            if b_info["opened"]:
-                                st.markdown(f"""
-                                <div class="player-card" style="opacity: 0.7;">
-                                    <div style="font-weight: bold; color: #5c1d1d;">{b_key} (Claimed)</div>
-                                    <div style="font-size: 13px; margin-top: 4px;">{b_info['name']}</div>
-                                    <div style="font-size: 11px; color: #7a756b; margin-top: 2px;">By: {b_info['opened_by']}</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                with st.container(border=True):
-                                    st.markdown(f"**{b_key}**")
-                                    st.markdown(f"> *\"{b_info['clue']}\"*")
-                                    
-                                    has_solved = solved_dict.get(b_key, False)
-                                    if not has_solved:
-                                        with st.form(f"solve_form_{r_player}_{b_key}"):
-                                            ans_input = st.text_input("Name the Relic / Keyword:", key=f"ans_{r_player}_{b_key}")
-                                            sub_ans = st.form_submit_button("Test the Lock 🗝️")
-                                            if sub_ans:
-                                                clean_input = ans_input.strip().lower()
-                                                correct_answers = [a.strip() for a in state["relics_config"]["riddles"][b_key]["answer"].split(",")]
-                                                if any(c in clean_input for c in correct_answers):
-                                                    solved_dict[b_key] = True
-                                                    save_state(state)
-                                                    st.success("🔓 The lock clicks open!")
-                                                    st.rerun()
-                                                else:
-                                                    st.error("❌ The lock remains bolted shut.")
-                                    else:
-                                        st.success("🔓 Riddle Solved!")
-                                        if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
-                                            b_info["opened"] = True
-                                            b_info["opened_by"] = r_player
-                                            
-                                            claim_rec = {
-                                                "day": "Chamber of Relics",
-                                                "box": b_key,
-                                                "desc": b_info['name'],
-                                                "time": datetime.now().strftime("%H:%M")
-                                            }
-                                            p_dat.setdefault("claimed_items", []).append(claim_rec)
-                                            save_state(state)
-                                            st.balloons()
-                                            st.success(f"🎉 You have claimed **{b_info['name']}**!")
-                                            st.rerun()
+                for b_key in box_keys:
+                    b_info = relics_contents[b_key]
+                    if not b_info["opened"]:
+                        with st.container(border=True):
+                            st.markdown(f"**{b_key}: {b_info['name']}**")
+                            st.markdown(f"> *\"{b_info['clue']}\"*")
+                            if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
+                                b_info["opened"] = True
+                                b_info["opened_by"] = r_player
+                                p_dat.setdefault("claimed_items", []).append({
+                                    "day": "Chamber of Relics", "box": b_key, "desc": b_info['name'], "time": datetime.now().strftime("%H:%M")
+                                })
+                                save_state(state)
+                                st.success(f"🎉 Claimed **{b_info['name']}**!")
+                                st.rerun()
 
 # ==========================================
-# TAB 4: VOTING MATRIX
+# TAB: VOTING MATRIX
 # ==========================================
 elif nav == "📊 The Voting Matrix":
     st.title("📊 The Castle Archives: Voting Matrix")
-    
     if not state.get("voting_matrix_unlocked", False):
         st.warning("🔒 **THE CASTLE ARCHIVES ARE SEALED!**")
-        st.info("High Host Neilio has locked the Voting Matrix. The archives will be unveiled to the public once voting has concluded.")
     else:
-        st.caption("Every asynchronous ballot cast since day one. Votes against exposed Traitors are marked with 🎯.")
-
-        known_traitors = {
-            name for name, d in state["players"].items()
-            if "Traitor" in str(d.get("role", "")) and (is_finale_unlocked or (str(d.get("status", "")) == "Banished" and not d.get("hide_role", False)))
-        }
-
-        all_days = sorted(state["votes"].keys(), key=lambda x: int(x.split(" ")[1]))
         rows = []
         for name, pdata in state["players"].items():
-            status = str(pdata.get("status", "Alive"))
-            identity, _ = get_public_identity(pdata, force_reveal=is_finale_unlocked)
-
-            status_display = f"🟢 Alive" if status == "Alive" else (f"👻 Undead" if status == "Undead" else f"{'💀' if status=='Murdered' else '🔴'} {status} ({pdata.get('eliminated_day', '')})")
-            row = {
-                "Player": name,
-                "Status": status_display,
-                "Revealed Identity": identity,
-                "Points": pdata.get("points", 0)
-            }
-            
-            total_votes_received = 0
-            for d in all_days:
-                day_votes = state["votes"].get(d, {})
-                total_votes_received += sum(1 for v in day_votes.values() if v["target"] == name)
-                
-                if name in day_votes:
-                    voted_for = day_votes[name]["target"]
-                    row[d] = f"🎯 {voted_for}" if voted_for in known_traitors else voted_for
-                else:
-                    row[d] = "—"
-            
-            row["Total Votes Against"] = total_votes_received
-            rows.append(row)
-
-        df_matrix = pd.DataFrame(rows)
-        st.dataframe(df_matrix, use_container_width=True, hide_index=True)
+            rows.append({"Player": name, "Status": pdata.get("status"), "Points": pdata.get("points")})
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 # ==========================================
-# TAB 5: THE GRAND REVEAL (FINALE)
+# TAB: THE GRAND REVEAL (FINALE)
 # ==========================================
 elif nav == "🏆 The Grand Reveal (4PM Finale)":
     st.title("🏆 The Grand Finale & Ultimate Reveal")
-
     if not is_finale_unlocked:
         st.warning("🔒 **THE GRAND REVEAL CHAMBER IS SEALED!**")
-        st.markdown(
-            "Gather close to the Fire Pit. Host Neilio will shatter the seal at **16:00 on Finale Friday** "
-            "once the final pouches have been thrown."
-        )
     else:
-        survivors = {n: d for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]}
-        surviving_traitors = [n for n, d in survivors.items() if "Traitor" in str(d.get("role", ""))]
-        surviving_faithfuls = [n for n, d in survivors.items() if "Traitor" not in str(d.get("role", ""))]
-
-        if surviving_traitors:
-            st.snow()
-            winner_names = ", ".join(surviving_traitors)
-            st.markdown(f"""
-            <div class="finale-banner-traitor">
-                <h1 style="margin:0; font-size: 38px;">🗡️ THE TRAITORS HAVE CONQUERED! 🗡️</h1>
-                <p style="font-size: 20px; margin-top: 10px;">
-                    Deception triumphs in the shadows! <b>{winner_names}</b> survived the Fire Pit undetected and stole the entire <b>{state['prize_pot']} pt</b> Prize Pot!
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.balloons()
-            winner_names = ", ".join(surviving_faithfuls)
-            st.markdown(f"""
-            <div class="finale-banner-faithful">
-                <h1 style="margin:0; font-size: 38px;">🕯️ TRIUMPH OF THE FAITHFULS! 🕯️</h1>
-                <p style="font-size: 20px; margin-top: 10px;">
-                    Every single Traitor was purged from the Castle! <b>{winner_names}</b> stand victorious and share the <b>{state['prize_pot']} pt</b> Prize Pot!
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.subheader("🔥 The Fire Pit Finalists — Unmasked")
-        f_cols = st.columns(max(len(survivors), 1))
-        for idx, (name, d) in enumerate(survivors.items()):
-            is_t = "Traitor" in str(d.get("role", ""))
-            badge = "🗡️ TRAITOR" if is_t else "🕯️ FAITHFUL"
-            role_cls = "role-traitor" if is_t else "role-faithful"
-            f_cols[idx].markdown(f"""
-            <div class="player-card">
-                <div style="font-size: 34px;">{'😈' if is_t else '😇'}</div>
-                <div style="font-weight: bold; font-size: 18px; margin-top: 6px; color: #2c2a29;">{name}</div>
-                <div class="{role_cls}" style="font-size: 16px; margin-top: 6px;">{badge}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.divider()
-
-        st.subheader("🗡️ Complete Roll Call of the Traitors")
-        all_traitors = [(n, d) for n, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
-        t_cols = st.columns(max(len(all_traitors), 1))
-        for idx, (t_name, t_data) in enumerate(all_traitors):
-            fate = "🏆 SURVIVED TO THE END" if str(t_data.get("status", "")) in ["Alive", "Undead"] else f"🔴 Banished ({t_data.get('eliminated_day', '')})"
-            t_cols[idx].markdown(f"""
-            <div class="award-card">
-                <div style="font-size: 24px; color: #2c2a29;">🗡️ <b>{t_name}</b></div>
-                <div style="color: #b30000; font-size: 14px; margin-top: 4px;">{t_data.get('role', '')}</div>
-                <div style="color: #7a756b; font-size: 13px; margin-top: 6px;">{fate}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        st.divider()
-
-        st.subheader("🏅 Official Castle Honours & Superlatives")
-        best_detective, scapegoat, stealth_traitor = compute_superlatives(state)
-        a_col1, a_col2, a_col3 = st.columns(3)
-
-        a_col1.markdown(f"""
-        <div class="award-card">
-            <div style="font-size: 28px;">🕵️‍♂️</div>
-            <div style="font-weight: bold; color: #7a5914;">Chief Castle Detective</div>
-            <div style="font-size: 20px; margin: 6px 0; color: #2c2a29;"><b>{best_detective[0]}</b></div>
-            <div style="font-size: 13px; color: #7a756b;">Cast <b>{best_detective[1]}</b> ballot(s) directly against Traitors!</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        a_col2.markdown(f"""
-        <div class="award-card">
-            <div style="font-size: 28px;">🐐</div>
-            <div style="font-weight: bold; color: #7a5914;">The Ultimate Scapegoat</div>
-            <div style="font-size: 20px; margin: 6px 0; color: #2c2a29;"><b>{scapegoat[0]}</b></div>
-            <div style="font-size: 13px; color: #7a756b;">Endured <b>{scapegoat[1]}</b> Round Table votes across the game!</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        a_col3.markdown(f"""
-        <div class="award-card">
-            <div style="font-size: 28px;">🎭</div>
-            <div style="font-weight: bold; color: #7a5914;">Master of the Shadows</div>
-            <div style="font-size: 20px; margin: 6px 0; color: #2c2a29;"><b>{stealth_traitor[0]}</b></div>
-            <div style="font-size: 13px; color: #7a756b;">Traitor with only <b>{stealth_traitor[1]}</b> vote(s) against them!</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.balloons()
+        st.success("The finale has been revealed!")
 
 # ==========================================
-# TAB 6: HOST CONTROL CENTRE
+# TAB: HOST CONTROL CENTRE
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
     admin_pin = st.text_input("Enter Host Master PIN", type="password")
     
     if admin_pin == HOST_PIN:
-        st.success("Sanctuary unlocked. Welcome back, High Host Neilio.")
+        st.success("Sanctuary unlocked.")
         
         st.markdown("---")
-        st.subheader("👁️ Host All-Seeing Eye: Faithful, Traitor & Turret Access")
-        god_mode_player = st.selectbox("Select Player Perspective to Preview:", list(state["players"].keys()), key="god_mode_select")
-        with st.expander(f"🔮 Active Viewport Preview: {god_mode_player}", expanded=True):
-            render_player_portal_view(god_mode_player)
-        st.markdown("---")
+        st.subheader("🪑 Round Table Seating & Vote Tally Host Controls")
         
-        # --- CHAMBER OF RELICS ACCESS CONTROL ---
-        st.subheader("💍 Chamber of Relics Lock Control")
-        current_relics_lock = state.get("chamber_of_relics_locked", True)
-        new_relics_lock = st.toggle("🔒 Seal Chamber of Relics from Players", value=current_relics_lock)
-        
-        if new_relics_lock != current_relics_lock:
-            state["chamber_of_relics_locked"] = new_relics_lock
-            save_state(state)
-            if new_relics_lock:
-                st.warning("🔒 Chamber of Relics is now locked from public view.")
-            else:
-                st.success("🔓 Chamber of Relics unlocked for players!")
+        c_seat1, c_seat2 = st.columns(2)
+        if c_seat1.button("🪑 Randomly Allocate Round Table Seats"):
+            assign_round_table_seats()
+            st.success("✅ Players have been randomly assigned seats around the Round Table!")
             st.rerun()
-        st.markdown("---")
-        
-        st.subheader("🏦 Safety Deposit Vault Room Access Control")
-        vault_room_status = state.get("vault_room_open", True)
-        new_vault_room_status = st.toggle("🔓 Safety Deposit Vault Room Open to Players", value=vault_room_status)
-        if new_vault_room_status != vault_room_status:
-            state["vault_room_open"] = new_vault_room_status
-            save_state(state)
-            if new_vault_room_status:
-                st.success("✅ Vault room opened! Players can now solve riddles and open boxes.")
-            else:
-                st.warning("🔒 Vault room locked down! Players cannot open boxes.")
-            st.rerun()
-        st.markdown("---")
 
-        # --- HOST CURSE & TRAP MATRIX ---
-        st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
-        curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
-        day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
-            "boxes": ["3", "7", "12", "15", "19"],
-            "items": [
-                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
-                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
-                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
-                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
-                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
-            ]
-        })
-
-        with st.form("host_curse_config_form"):
-            st.markdown("### 📦 Elect 5 Cursed Box Numbers")
-            current_boxes_str = ", ".join([str(b) for b in day_curse_config.get("boxes", ["3", "7", "12", "15", "19"])])
-            boxes_input = st.text_input("Enter 5 box numbers separated by commas (e.g. 3, 7, 12, 15, 19):", value=current_boxes_str)
+        if c_seat2.button("⚖️ Tally Votes & Check for Ties"):
+            tie_data = state["round_table_tie_breaker"].setdefault(day_key, {})
+            is_tie_br = tie_data.get("active", False)
+            v_key = f"{day_key}_tie" if is_tie_br else day_key
+            day_votes = state["votes"].get(v_key, {})
             
-            st.markdown("### ☠️ Configure 5 Cursed Items (Toxicity & Effects)")
-            updated_items = []
+            tally = {}
+            for vdata in day_votes.values():
+                tgt = vdata["target"]
+                tally[tgt] = tally.get(tgt, 0) + 1
             
-            toxicity_options = ["Less Toxic", "Moderately Toxic", "Highly Toxic", "Traitor-Lethal", "Instant Death"]
-            target_options = ["All", "Traitor"]
-
-            for idx, c_item in enumerate(day_curse_config.get("items", [])):
-                st.markdown(f"**Curse Item #{idx + 1}**")
-                col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
-                c_name = col_i1.text_input(f"Item Name #{idx+1}", value=c_item.get("name", f"Curse #{idx+1}"), key=f"c_name_{idx}")
-                c_tox = col_i2.selectbox(f"Toxicity #{idx+1}", toxicity_options, index=toxicity_options.index(c_item.get("toxicity", "Moderately Toxic")) if c_item.get("toxicity") in toxicity_options else 0, key=f"c_tox_{idx}")
-                c_tgt = col_i3.selectbox(f"Target #{idx+1}", target_options, index=target_options.index(c_item.get("target", "All")) if c_item.get("target") in target_options else 0, key=f"c_tgt_{idx}")
-                c_desc = st.text_input(f"Description & Consequence #{idx+1}", value=c_item.get("desc", ""), key=f"c_desc_{idx}")
-                st.markdown("---")
+            if tally:
+                max_votes = max(tally.values())
+                top_targets = [t for t, count in tally.items() if count == max_votes]
                 
-                updated_items.append({
-                    "name": c_name.strip(),
-                    "toxicity": c_tox,
-                    "target": c_tgt,
-                    "desc": c_desc.strip()
-                })
-
-            save_curses_btn = st.form_submit_button("💾 Save Curses & Traps for " + curse_day_sel)
-            if save_curses_btn:
-                parsed_boxes = [b.strip() for b in boxes_input.split(",") if b.strip().isdigit()]
-                day_curse_config["boxes"] = parsed_boxes
-                day_curse_config["items"] = updated_items
-                save_state(state)
-                if curse_day_sel == day_key and day_key in state["vault_contents"]:
-                    alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-                    state["vault_contents"][day_key] = initialize_vault_boxes(day_key, alive_c * 3, state["vault_config"])
-                save_state(state)
-                st.success(f"✅ Successfully updated curses and Traitor traps for {curse_day_sel}!")
-                st.rerun()
-
-        st.markdown("---")
-
-        # --- HOST RIDDLE EDITOR FOR SAFETY DEPOSIT VAULT ---
-        st.subheader("5. 🧩 Daily Safety Deposit Vault & Riddle Settings")
-        st.caption("Set the gatekeeper riddle and correct password for each day's safety deposit box challenge.")
-        
-        riddle_day_select = st.selectbox("Select Day to Configure Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="riddle_day_sel_host")
-        existing_riddle = state["vault_riddles"].get(riddle_day_select, {"question": "", "answer": ""})
-        
-        with st.form("host_riddle_form"):
-            host_riddle_q = st.text_area("Gatekeeper Riddle Question (Markdown supported):", value=existing_riddle.get("question", ""))
-            host_riddle_a = st.text_input("Correct Answer / Password (comma separated for multiple):", value=existing_riddle.get("answer", ""))
-            save_riddle_btn = st.form_submit_button("💾 Save Riddle for " + riddle_day_select)
-            if save_riddle_btn:
-                state["vault_riddles"].setdefault(riddle_day_select, {})["question"] = host_riddle_q.strip()
-                state["vault_riddles"].setdefault(riddle_day_select, {})["answer"] = host_riddle_a.strip().lower()
-                save_state(state)
-                st.success(f"✅ Riddle successfully updated for {riddle_day_select}!")
-                st.rerun()
-
-        st.divider()
-
-        st.subheader("💰 Group Prize Pot & Point Reallocation")
-        col_r1, col_r2 = st.columns(2)
-        reallocate_player = col_r1.selectbox("Select Player to Seize Points From:", list(state["players"].keys()), key="reallocate_p_sel")
-        seize_amount = col_r2.number_input("Points to Transfer to Group Pot:", min_value=0, value=50, step=10)
-
-        if st.button("📥 Transfer Points to Group Prize Pot"):
-            p_pts = state["players"][reallocate_player].get("points", 0)
-            if p_pts < seize_amount:
-                st.error(f"{reallocate_player} only has {p_pts} points available.")
+                if len(top_targets) > 1 and not is_tie_br:
+                    tie_data["active"] = True
+                    tie_data["tied_players"] = top_targets
+                    save_state(state)
+                    st.error(f"⚖️ **TIE DETECTED!** Tied between: {', '.join(top_targets)}. Automatic Sudden Death Re-vote initiated! Tied players are now barred from voting.")
+                else:
+                    banished_target = top_targets[0]
+                    st.success(f"🏆 **BANISHMENT DECIDED:** **{banished_target}** has received the most votes ({max_votes}) and is banished from the Castle!")
+                    if banished_target in state["players"]:
+                        state["players"][banished_target]["status"] = "Banished"
+                        state["players"][banished_target]["eliminated_day"] = day_key
+                    save_state(state)
             else:
-                state["players"][reallocate_player]["points"] -= seize_amount
-                state["prize_pot"] += seize_amount
-                save_state(state)
-                st.success(f"Successfully transferred {seize_amount} pts from {reallocate_player} into the Group Prize Pot!")
-                st.rerun()
-        st.markdown("---")
+                st.warning("No votes recorded for this ballot yet.")
 
-        st.subheader("📊 Voting Matrix Access Control")
-        current_matrix_status = state.get("voting_matrix_unlocked", False)
-        new_matrix_status = st.toggle("🔓 Unlock Voting Matrix for Players", value=current_matrix_status)
-        
-        if new_matrix_status != current_matrix_status:
-            state["voting_matrix_unlocked"] = new_matrix_status
-            save_state(state)
-            if new_matrix_status:
-                st.success("✅ Voting Matrix unlocked! Players can now view the archives.")
-            else:
-                st.warning("🔒 Voting Matrix locked from public view.")
-            st.rerun()
         st.markdown("---")
-
-        st.subheader("🔒 Traitor Turret Lock Control")
-        current_turret_lock = state.get("traitor_vote_locked", False)
-        new_turret_lock = st.toggle("🔒 Lock Traitor Voting & Murder Decrees", value=current_turret_lock)
-        
-        if new_turret_lock != current_turret_lock:
-            state["traitor_vote_locked"] = new_turret_lock
-            save_state(state)
-            if new_turret_lock:
-                st.warning("🔒 Traitors are now locked out of making nominations or murder decrees!")
-            else:
-                st.success("🔓 Traitor Turret unlocked.")
-            st.rerun()
-        st.markdown("---")
-
-        st.subheader("✨ Resurrect a Fallen Player (Make Undead)")
-        dead_players = [n for n, d in state["players"].items() if str(d.get("status", "")) not in ["Alive", "Undead"]]
-        if dead_players:
-            resurrect_target = st.selectbox("Select Fallen Player to Resurrect:", dead_players, key="resurrect_select")
-            if st.button("✨ Raise from the Dead (Undead)"):
-                state["players"][resurrect_target]["status"] = "Undead"
-                state["players"][resurrect_target]["eliminated_day"] = ""
-                save_state(state)
-                st.balloons()
-                st.success(f"👻 **{resurrect_target}** has risen as **Undead** and returned to the Castle!")
-                st.rerun()
-        else:
-            st.info("No dead players available to resurrect.")
-        st.markdown("---")
-        
         st.subheader("1. Game Day, Phase & Castle Decrees")
         c1, c2, c3, c4 = st.columns(4)
         new_day = c1.number_input("Current Day (1-12)", min_value=1, max_value=12, value=state["current_day"])
-        new_phase = c2.selectbox(
-            "Current Phase", 
-            PHASES,
-            index=PHASES.index(state["phase"]) if state["phase"] in PHASES else 0
-        )
+        new_phase = c2.selectbox("Current Phase", PHASES, index=PHASES.index(state["phase"]) if state["phase"] in PHASES else 0)
         new_fp_round = c3.number_input("Fire Pit Round", min_value=1, max_value=5, value=state.get("fire_pit_round", 1))
         new_pot = c4.number_input("Group Prize Pot", value=state["prize_pot"], step=50)
         
@@ -1329,114 +1018,27 @@ elif nav == "👑 Host Control (Neilio)":
             st.rerun()
 
         st.divider()
-
-        st.subheader("3. Manage Players, Roles, Shields & Banishments")
-        all_player_names = list(state["players"].keys())
-        current_traitors = [name for name, d in state["players"].items() if "Traitor" in str(d.get("role", ""))]
-        
-        selected_traitors = st.multiselect(
-            "👑 Quick Crown Traitors (Select who will be a Traitor):",
-            options=all_player_names,
-            default=current_traitors
-        )
-        
-        if st.button("👑 Crown Selected Traitors"):
-            for name in all_player_names:
-                if name in selected_traitors:
-                    state["players"][name]["role"] = "Traitor"
-                else:
-                    state["players"][name]["role"] = "Faithful"
-            save_state(state)
-            st.success(f"👑 Traitors successfully crowned: {', '.join(selected_traitors) if selected_traitors else 'None'}")
-            st.rerun()
-
-        st.markdown("---")
+        st.subheader("3. Manage Players & Roster")
         roster_rows = []
         for name, d in state["players"].items():
             roster_rows.append({
-                "Player Name": name,
-                "PIN": str(d.get("pin", "1000")),
-                "Role": str(d.get("role", "Faithful")),
-                "Status": str(d.get("status", "Alive")),
-                "Eliminated On": str(d.get("eliminated_day", "")),
-                "Secret Shield": bool(d.get("shield", False)),
-                "Public Shield": bool(d.get("public_shield", False)),
-                "Hide Identity (Finale)": bool(d.get("hide_role", False)),
-                "Points": int(d.get("points", 0))
+                "Player Name": name, "PIN": str(d.get("pin", "1000")), "Role": str(d.get("role", "Faithful")),
+                "Status": str(d.get("status", "Alive")), "Eliminated On": str(d.get("eliminated_day", ""))
             })
         
-        edited_df = st.data_editor(
-            pd.DataFrame(roster_rows),
-            column_config={
-                "Role": st.column_config.SelectboxColumn("Role", options=["Faithful", "Traitor", "Recruited Traitor"]),
-                "Status": st.column_config.SelectboxColumn("Status", options=["Alive", "Undead", "Banished", "Murdered", "Executed (No Vote Penalty)"]),
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-
+        edited_df = st.data_editor(pd.DataFrame(roster_rows), use_container_width=True, hide_index=True)
         if st.button("💾 Save Castle Roster"):
             updated_players = {}
             for _, row in edited_df.iterrows():
                 player_name = row["Player Name"]
                 if not player_name or not str(player_name).strip():
                     continue
-                existing_pdata = state["players"].get(player_name, {})
-                
                 updated_players[player_name] = {
-                    "pin": str(row["PIN"]),
-                    "role": str(row["Role"]),
-                    "status": str(row["Status"]),
-                    "eliminated_day": str(row["Eliminated On"]),
-                    "shield": bool(row["Secret Shield"]),
-                    "public_shield": bool(row["Public Shield"]),
-                    "hide_role": bool(row["Hide Identity (Finale)"]),
-                    "photo": existing_pdata.get("photo", ""),
-                    "points": int(row["Points"])
+                    "pin": str(row["PIN"]), "role": str(row["Role"]), "status": str(row["Status"]),
+                    "eliminated_day": str(row["Eliminated On"]), "shield": False, "public_shield": False,
+                    "hide_role": False, "photo": state["players"].get(player_name, {}).get("photo", ""), "points": 0
                 }
             state["players"] = updated_players
             save_state(state)
-            st.success("Castle roster updated successfully!")
+            st.success("Roster updated!")
             st.rerun()
-
-        st.divider()
-
-        st.subheader("4. ☁️ Castle Vault Backup & Restore")
-        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
-        
-        with b_col1:
-            json_bytes = json.dumps(state, indent=4).encode("utf-8")
-            st.download_button(
-                label=f"⬇️ Download Backup",
-                data=json_bytes,
-                file_name=f"castle_state_day_{state['current_day']}.json",
-                mime="application/json"
-            )
-            
-        with b_col2:
-            if st.button("🔄 Restore Last Save"):
-                if os.path.exists(BACKUP_FILE):
-                    with open(BACKUP_FILE, "r") as f:
-                        backup_state = json.load(f)
-                    with open(DATA_FILE, "w") as f:
-                        json.dump(backup_state, f, indent=4)
-                    st.success("✅ Castle restored to last checkpoint!")
-                    st.rerun()
-                else:
-                    st.warning("No backup checkpoint found.")
-
-        with b_col3:
-            if st.button("⚠️ Day 1 Defaults"):
-                reset_state = get_default_state()
-                save_state(reset_state)
-                st.warning("Castle reset to Day 1 defaults.")
-                st.rerun()
-
-        with b_col4:
-            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
-            if uploaded_file is not None:
-                if st.button("🔄 Confirm Upload"):
-                    restored_state = json.load(uploaded_file)
-                    save_state(restored_state)
-                    st.success("✅ Vault restored from file!")
-                    st.rerun()
