@@ -4,7 +4,7 @@ import json
 import os
 import base64
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
 
@@ -248,6 +248,21 @@ def send_email_backup(state_data):
     except Exception as e:
         print(f"Email Backup Error: {e}")
 
+def send_login_alert(player_name):
+    """Sends an instant email alert to Host Neilio when a player logs into their portal."""
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = f"🗝️ Castle Login Alert: {player_name} has entered!"
+        msg['From'] = AOL_SENDER_EMAIL
+        msg['To'] = "hoeyneil@aol.com"
+        msg.set_content(f"High Host Neilio,\n\nPlayer {player_name} successfully unlocked and logged into their Castle Portal at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.")
+
+        with smtplib.SMTP_SSL('smtp.aol.com', 465) as smtp:
+            smtp.login(AOL_SENDER_EMAIL, AOL_PASSWORD)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Login Alert Email Error: {e}")
+
 PHASES = [
     "Breakfast & Launch",
     "24-Hour Asynchronous Window",
@@ -329,7 +344,8 @@ def get_default_state():
         "round_table_timers": {},
         "round_table_tie_breaker": {},
         "non_voters": {},
-        "public_execution": {}
+        "public_execution": {},
+        "login_history": []  # Tracks login audit log timestamps
     }
 
 def load_state():
@@ -344,8 +360,8 @@ def load_state():
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
-                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution"]:
-        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {}))
+                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history"]:
+        state.setdefault(key, [] if key == "login_history" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {})))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -805,6 +821,11 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
         
         if entered_pin and entered_pin == str(p_info.get("pin", "")):
             st.session_state["logged_in_player"] = selected_player
+            # Log login to history and trigger email alert to Host Neilio
+            login_entry = {"player": selected_player, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "day": day_key}
+            state.setdefault("login_history", []).append(login_entry)
+            save_state(state)
+            send_login_alert(selected_player)
             is_authenticated = True
         elif "logged_in_player" in st.session_state and st.session_state["logged_in_player"] == selected_player:
             is_authenticated = True
@@ -906,6 +927,37 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        # --- NEW: LOGIN AUDIT LOG (CURRENT & LAST 24H) ---
+        st.markdown("---")
+        st.subheader("👁️ Castle Login Audit Log (Active & Past 24 Hours)")
+        
+        # Currently logged in session check
+        if "logged_in_player" in st.session_state:
+            st.info(f"🟢 **Currently Logged In on this Host Session:** {st.session_state['logged_in_player']}")
+        else:
+            st.info("⚪ Host browser session is not currently logged into a player portal.")
+
+        # Filter login history for the last 24 hours
+        login_history = state.setdefault("login_history", [])
+        now = datetime.now()
+        cutoff_24h = now - timedelta(hours=24)
+        
+        recent_logins = []
+        for entry in login_history:
+            try:
+                entry_time = datetime.strptime(entry["time"], "%Y-%m-%d %H:%M:%S")
+                if entry_time >= cutoff_24h:
+                    recent_logins.append(entry)
+            except Exception:
+                pass
+
+        if recent_logins:
+            st.markdown("#### 📜 Logins Over the Last 24 Hours:")
+            log_df = pd.DataFrame(recent_logins)
+            st.dataframe(log_df, use_container_width=True, hide_index=True)
+        else:
+            st.caption("No player logins recorded in the last 24 hours.")
+
         st.markdown("---")
         st.subheader("🎶 Host Dramatic Soundboard")
         st.markdown("Play theme music on demand for maximum suspense during the Round Table or banishments!")
