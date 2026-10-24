@@ -304,6 +304,7 @@ def get_default_state():
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
         "voting_active": True,
+        "castle_gates_open": True,  # Controls whether players can log into the portal
         "headline": "Welcome to Neilio's Castle! The Round Table voting is now live.",
         "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nCast your vote before voting is closed by the Host!",
         "players": default_players,
@@ -344,7 +345,7 @@ def load_state():
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
                 "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution"]:
-        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active"] else {}))
+        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {}))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -772,11 +773,11 @@ elif nav == "💀 Public Execution Room":
 
         with st.form("public_execution_form"):
             exec_target = st.selectbox("Select guilty non-voter to execute:", manual_non_voters)
-            exec_submit = st.form_submit_button("Send to the Gallows 🪓")
+            exec_submit = st.form_submit_button("Throw them to the Ghost 👻")
             if exec_submit:
                 pub_exec_votes[exec_voter] = exec_target
                 save_state(state)
-                st.success(f"✅ Your vote to execute **{exec_target}** has been recorded!")
+                st.success(f"✅ Your vote to throw **{exec_target}** to the ghost has been recorded!")
 
         st.markdown("---")
         st.subheader("📊 Live Execution Tally Board")
@@ -786,7 +787,7 @@ elif nav == "💀 Public Execution Room":
 
         if tally:
             for target, count in tally.items():
-                st.markdown(f"• 🪓 **{target}**: `{count} vote(s)`")
+                st.markdown(f"• 👻 **{target}**: `{count} vote(s)`")
         else:
             st.info("No execution votes cast yet.")
 
@@ -796,38 +797,43 @@ elif nav == "💀 Public Execution Room":
 elif nav == "🗳️ Player Portal (Vote & Role)":
     st.title("🗝️ The Secret Chamber Portal")
     
-    default_player_idx = 0
-    if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
-        default_player_idx = list(state["players"].keys()).index(st.session_state["logged_in_player"])
-
-    col1, col2 = st.columns(2)
-    selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()), index=default_player_idx)
-    entered_pin = col2.text_input("Enter PIN", type="password")
-
-    is_authenticated = False
-    p_info = state["players"][selected_player]
-    
-    if entered_pin and entered_pin == str(p_info.get("pin", "")):
-        st.session_state["logged_in_player"] = selected_player
-        is_authenticated = True
-    elif "logged_in_player" in st.session_state and st.session_state["logged_in_player"] == selected_player:
-        is_authenticated = True
-
-    if is_authenticated:
-        st.success(f"🔓 Authenticated in the shadows as **{selected_player}**. The Castle remembers you across all chambers!")
-        with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
-            uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
-            if uploaded_file is not None:
-                p_info["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
-                save_state(state)
-                st.success("✨ Portrait updated!")
-                st.rerun()
-            if p_info.get("photo"): st.image(p_info["photo"], width=100)
-        render_player_portal_view(selected_player)
-    elif entered_pin:
-        st.error("❌ Incorrect PIN.")
+    # Check if Castle Gates are closed by Host
+    if not state.get("castle_gates_open", True):
+        st.error("🏰 **THE CASTLE GATES ARE CURRENTLY CLOSED!**")
+        st.warning("High Host Neilio has barred entry to the player portals. Stand by in the Great Hall until the gates are reopened.")
     else:
-        st.info("💡 Enter your 4-digit PIN above to unlock your portal and lock in your identity across the Castle.")
+        default_player_idx = 0
+        if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
+            default_player_idx = list(state["players"].keys()).index(st.session_state["logged_in_player"])
+
+        col1, col2 = st.columns(2)
+        selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()), index=default_player_idx)
+        entered_pin = col2.text_input("Enter PIN", type="password")
+
+        is_authenticated = False
+        p_info = state["players"][selected_player]
+        
+        if entered_pin and entered_pin == str(p_info.get("pin", "")):
+            st.session_state["logged_in_player"] = selected_player
+            is_authenticated = True
+        elif "logged_in_player" in st.session_state and st.session_state["logged_in_player"] == selected_player:
+            is_authenticated = True
+
+        if is_authenticated:
+            st.success(f"🔓 Authenticated in the shadows as **{selected_player}**. The Castle remembers you across all chambers!")
+            with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
+                uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
+                if uploaded_file is not None:
+                    p_info["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
+                    save_state(state)
+                    st.success("✨ Portrait updated!")
+                    st.rerun()
+                if p_info.get("photo"): st.image(p_info["photo"], width=100)
+            render_player_portal_view(selected_player)
+        elif entered_pin:
+            st.error("❌ Incorrect PIN.")
+        else:
+            st.info("💡 Enter your 4-digit PIN above to unlock your portal and lock in your identity across the Castle.")
 
 # ==========================================
 # TAB 5: CHAMBER OF RELICS
@@ -903,13 +909,26 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 8: HOST CONTROL CENTRE (WITH BACKUP & UPLOAD SANCTUARY)
+# TAB 8: HOST CONTROL CENTRE
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        st.markdown("---")
+        st.subheader("🏰 Castle Gates Access Control")
+        current_gates = state.get("castle_gates_open", True)
+        new_gates = st.toggle("🔓 Castle Gates Open (Allow Player Logins)", value=current_gates)
+        if new_gates != current_gates:
+            state["castle_gates_open"] = new_gates
+            save_state(state)
+            if new_gates:
+                st.success("✅ Castle gates opened! Players can now log into their portals.")
+            else:
+                st.warning("🔒 Castle gates locked! Player logins are now barred.")
+            st.rerun()
+
         st.markdown("---")
         st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
         
