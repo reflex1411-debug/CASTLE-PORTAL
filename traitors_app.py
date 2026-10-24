@@ -620,6 +620,20 @@ st.sidebar.markdown(f"**High Host:** Neilio 👑")
 st.sidebar.markdown(f"**Current Day:** Day {state['current_day']} of 10")
 st.sidebar.markdown(f"**Current Phase:** `{state['phase']}`")
 
+# Display active player memory banner in sidebar if logged in
+if "logged_in_player" in st.session_state:
+    st.sidebar.success(f"🔑 Logged in as: **{st.session_state['logged_in_player']}**")
+    if st.sidebar.button("🔓 Logout"):
+        del st.session_state["logged_in_player"]
+        st.rerun()
+
+st.sidebar.divider()
+st.sidebar.markdown("### 🎵 Castle Atmosphere")
+enable_audio = st.sidebar.toggle("Play Theme Music 🎶", value=True)
+if enable_audio:
+    # Playing low background music loop via Streamlit audio component
+    st.sidebar.audio("https://www2.cs.uic.edu/~i101/SoundFiles/CantinaBand3.wav", format="audio/wav", loop=True, autoplay=True)
+
 alive_count = sum(1 for p in state["players"].values() if str(p.get("status", "Alive")) in ["Alive", "Undead"])
 st.sidebar.metric("🟢 Survivors", f"{alive_count} / {len(state['players'])}")
 st.sidebar.metric("🏆 Prize Pot", f"{state['prize_pot']} pts")
@@ -676,25 +690,26 @@ if nav == "🏰 Castle Hall (Public)":
 # ==========================================
 elif nav == "💬 Round Table WhatsApp Chat":
     st.title("💬 Round Table WhatsApp Chat")
-    st.markdown("> *\"The digital chamber of whispers. Select your name once below, then send messages instantly to debate theories, accuse suspects, and defend your honor.\"*")
+    
+    # Check if player is remembered via session state
+    if "logged_in_player" not in st.session_state:
+        st.warning("⚠️ You are not authenticated yet! Please log in with your name and PIN in the **Player Portal** first, or select your identity below:")
+        chat_author = st.selectbox("Select Your Identity for Chat:", list(state["players"].keys()), key="wa_fallback_identity")
+    else:
+        chat_author = st.session_state["logged_in_player"]
+        st.success(f"💬 Chatting as: **{chat_author}**")
 
-    # Timers
     timers = state["round_table_timers"].setdefault(day_key, {"voting_opens": "18:00", "voting_closes": "21:00"})
     t1, t2 = st.columns(2)
     t1.markdown(f"<div class='award-card'><b>🟢 Voting Opens:</b> {timers['voting_opens']}</div>", unsafe_allow_html=True)
     t2.markdown(f"<div class='award-card'><b>🔴 Voting Closes:</b> {timers['voting_closes']}</div>", unsafe_allow_html=True)
     st.divider()
 
-    # WhatsApp Chat Box Wrapper
     st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
     st.markdown(f'<div class="wa-header"><span>💬 The Round Table ({day_key})</span><span>🔒 Encrypted Whispers</span></div>', unsafe_allow_html=True)
 
-    # Persistent Identity Selector for Chat
-    chat_identity = st.selectbox("Select Your Identity for Chat:", list(state["players"].keys()), key="wa_chat_identity_persistent")
-
     chat_messages = state["round_table_chat"].setdefault(day_key, [])
 
-    # Scrollable chat message container
     chat_container = st.container(height=420)
     with chat_container:
         if chat_messages:
@@ -709,14 +724,13 @@ elif nav == "💬 Round Table WhatsApp Chat":
         else:
             st.info("No messages in the chat yet. Start the discussion below...")
 
-    # Chat Input Form
     with st.form("wa_chat_form", clear_on_submit=True):
         c_input, c_btn = st.columns([4, 1])
         chat_text = c_input.text_input("Type a message...", placeholder="Type your accusation or defense...", label_visibility="collapsed")
         chat_submit = c_btn.form_submit_button("Send ➔")
         if chat_submit and chat_text.strip():
             chat_messages.append({
-                "author": chat_identity,
+                "author": chat_author,
                 "text": chat_text.strip(),
                 "time": datetime.now().strftime("%H:%M")
             })
@@ -730,24 +744,39 @@ elif nav == "💬 Round Table WhatsApp Chat":
 # ==========================================
 elif nav == "🗳️ Player Portal (Vote & Role)":
     st.title("🗝️ The Secret Chamber Portal")
+    
+    default_player_idx = 0
+    if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
+        default_player_idx = list(state["players"].keys()).index(st.session_state["logged_in_player"])
+
     col1, col2 = st.columns(2)
-    selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()))
+    selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()), index=default_player_idx)
     entered_pin = col2.text_input("Enter PIN", type="password")
-    if entered_pin:
-        p_info = state["players"][selected_player]
-        if entered_pin != str(p_info.get("pin", "")):
-            st.error("❌ Incorrect PIN.")
-        else:
-            st.success(f"Welcome back, **{selected_player}**.")
-            with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
-                uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
-                if uploaded_file is not None:
-                    p_info["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
-                    save_state(state)
-                    st.success("✨ Portrait updated!")
-                    st.rerun()
-                if p_info.get("photo"): st.image(p_info["photo"], width=100)
-            render_player_portal_view(selected_player)
+
+    is_authenticated = False
+    p_info = state["players"][selected_player]
+    
+    if entered_pin and entered_pin == str(p_info.get("pin", "")):
+        st.session_state["logged_in_player"] = selected_player
+        is_authenticated = True
+    elif "logged_in_player" in st.session_state and st.session_state["logged_in_player"] == selected_player:
+        is_authenticated = True
+
+    if is_authenticated:
+        st.success(f"🔓 Authenticated in the shadows as **{selected_player}**. The Castle remembers you across all chambers!")
+        with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
+            uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
+            if uploaded_file is not None:
+                p_info["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
+                save_state(state)
+                st.success("✨ Portrait updated!")
+                st.rerun()
+            if p_info.get("photo"): st.image(p_info["photo"], width=100)
+        render_player_portal_view(selected_player)
+    elif entered_pin:
+        st.error("❌ Incorrect PIN.")
+    else:
+        st.info("💡 Enter your 4-digit PIN above to unlock your portal and lock in your identity across the Castle.")
 
 # ==========================================
 # TAB 4: CHAMBER OF RELICS
@@ -757,41 +786,41 @@ elif nav == "💍 Chamber of Relics":
     if state.get("chamber_of_relics_locked", True):
         st.warning("🔒 **THE CHAMBER OF RELICS IS SEALED!**")
     else:
-        col_p_sel, col_p_pin = st.columns(2)
-        r_player = col_p_sel.selectbox("Select Your Name", list(state["players"].keys()), key="relic_player_sel")
-        r_pin = col_p_pin.text_input("Enter PIN", type="password", key="relic_pin_sel")
-        if r_pin and r_pin == str(state["players"][r_player].get("pin")):
+        r_player = st.session_state.get("logged_in_player", list(state["players"].keys())[0])
+        st.info(f"🔑 Accessing Relics as remembered player: **{r_player}** (Switch via Player Portal if needed)")
+
+        p_dat = state["players"][r_player]
+        relics_contents = state["relics_vault_contents"]
+        if not relics_contents:
+            state["relics_vault_contents"] = initialize_relics_boxes()
+            save_state(state)
             relics_contents = state["relics_vault_contents"]
-            if not relics_contents:
-                state["relics_vault_contents"] = initialize_relics_boxes()
-                save_state(state)
-                relics_contents = state["relics_vault_contents"]
-            solved_dict = state.setdefault("relics_riddle_solved", {}).setdefault(r_player, {})
-            for b_key, b_info in relics_contents.items():
-                if b_info["opened"]:
-                    st.markdown(f'<div class="player-card" style="opacity: 0.7;"><b>{b_key} (Claimed)</b>: {b_info["name"]} by {b_info["opened_by"]}</div>', unsafe_allow_html=True)
-                else:
-                    with st.container(border=True):
-                        st.markdown(f"**{b_key}**\n> *\"{b_info['clue']}\"*")
-                        if not solved_dict.get(b_key, False):
-                            with st.form(f"solve_{r_player}_{b_key}"):
-                                ans = st.text_input("Name Keyword:")
-                                if st.form_submit_button("Test Lock 🗝️"):
-                                    if any(c in ans.strip().lower() for c in state["relics_config"]["riddles"][b_key]["answer"].split(",")):
-                                        solved_dict[b_key] = True
-                                        save_state(state)
-                                        st.success("🔓 Unlocked!")
-                                        st.rerun()
-                                    else: st.error("❌ Incorrect.")
-                        else:
-                            if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
-                                b_info["opened"] = True
-                                b_info["opened_by"] = r_player
-                                state["players"][r_player].setdefault("claimed_items", []).append({"day": "Relics", "box": b_key, "desc": b_info['name'], "time": datetime.now().strftime("%H:%M")})
-                                save_state(state)
-                                st.balloons()
-                                st.success("🎉 Claimed!")
-                                st.rerun()
+        solved_dict = state.setdefault("relics_riddle_solved", {}).setdefault(r_player, {})
+        for b_key, b_info in relics_contents.items():
+            if b_info["opened"]:
+                st.markdown(f'<div class="player-card" style="opacity: 0.7;"><b>{b_key} (Claimed)</b>: {b_info["name"]} by {b_info["opened_by"]}</div>', unsafe_allow_html=True)
+            else:
+                with st.container(border=True):
+                    st.markdown(f"**{b_key}**\n> *\"{b_info['clue']}\"*")
+                    if not solved_dict.get(b_key, False):
+                        with st.form(f"solve_{r_player}_{b_key}"):
+                            ans = st.text_input("Name Keyword:")
+                            if st.form_submit_button("Test Lock 🗝️"):
+                                if any(c in ans.strip().lower() for c in state["relics_config"]["riddles"][b_key]["answer"].split(",")):
+                                    solved_dict[b_key] = True
+                                    save_state(state)
+                                    st.success("🔓 Unlocked!")
+                                    st.rerun()
+                                else: st.error("❌ Incorrect.")
+                    else:
+                        if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
+                            b_info["opened"] = True
+                            b_info["opened_by"] = r_player
+                            state["players"][r_player].setdefault("claimed_items", []).append({"day": "Relics", "box": b_key, "desc": b_info['name'], "time": datetime.now().strftime("%H:%M")})
+                            save_state(state)
+                            st.balloons()
+                            st.success("🎉 Claimed!")
+                            st.rerun()
 
 # ==========================================
 # TAB 5: VOTING MATRIX
