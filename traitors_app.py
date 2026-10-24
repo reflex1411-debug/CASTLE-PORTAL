@@ -4,7 +4,6 @@ import json
 import os
 import base64
 import random
-import math
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
@@ -158,63 +157,45 @@ st.markdown("""
         font-weight: bold;
     }
 
-    /* Expanded & Spacious Circular Round Table CSS Layout */
-    .rt-container {
-        position: relative;
-        width: 100%;
-        max-width: 580px;
-        height: 580px;
-        margin: 30px auto;
-        border-radius: 50%;
-        border: 4px dashed #c5a059;
-        background: radial-gradient(circle, #2c2a29 0%, #1a1817 100%);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.5);
-    }
-    .rt-table-center {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 180px;
-        height: 180px;
-        border-radius: 50%;
-        background: #3b2219;
-        border: 3px solid #c5a059;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        color: #ebdccb;
-        font-family: 'Georgia', serif;
-        font-weight: bold;
-        font-size: 14px;
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
-        z-index: 2;
-    }
-    .rt-seat {
-        position: absolute;
-        width: 95px;
-        height: 95px;
-        transform: translate(-50%, -50%);
-        background: #ffffff;
+    /* WhatsApp Style Chat UI */
+    .wa-chat-container {
+        background-color: #e5ddd5;
+        border-radius: 8px;
         border: 2px solid #c5a059;
-        border-radius: 50%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        box-shadow: 0 6px 14px rgba(0,0,0,0.35);
-        z-index: 3;
+        padding: 16px;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
     }
-    .rt-seat div {
-        color: #2c2a29 !important;
-        font-size: 11px;
+    .wa-header {
+        background-color: #075e54;
+        color: #ffffff !important;
+        padding: 12px 16px;
+        border-radius: 6px 6px 0 0;
         font-weight: bold;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 85px;
+        font-size: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .wa-header span {
+        color: #ffffff !important;
+    }
+    .wa-message-bubble {
+        background-color: #ffffff;
+        border-radius: 7.5px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        max-width: 80%;
+        box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+        position: relative;
+    }
+    .wa-message-bubble b {
+        color: #075e54 !important;
+    }
+    .wa-message-time {
+        font-size: 10px;
+        color: #999999 !important;
+        text-align: right;
+        margin-top: 4px;
     }
 
     /* Streamlit Form & Input Styling Overrides */
@@ -321,7 +302,7 @@ def get_default_state():
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
         "headline": "Welcome to Neilio's Castle! The Round Table is now in session.",
-        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nDebate theories in the chamber and cast your vote before the timer expires!",
+        "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nDebate theories in the WhatsApp chat and cast your vote before the timer expires!",
         "players": default_players,
         "votes": {},
         "fire_pit_votes": {},
@@ -355,7 +336,6 @@ def get_default_state():
                 "Box 12": {"name": "🪙 Fool’s Copper Band", "clue": "Glittering brightly under the light, I promise great power, I promise great might. But open me up and read my decree: you’ve been wonderfully fooled by a bit of debris!", "answer": "fool, copper, brass"}
             }
         },
-        "round_table_seating": {},
         "round_table_chat": {},
         "round_table_timers": {},
         "round_table_tie_breaker": {}
@@ -372,9 +352,9 @@ def load_state():
     for key in ["fire_pit_round", "fire_pit_votes", "turret_nominations", "unanimous_murder",
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
-                "chamber_of_relics_locked", "relics_vault_contents", "round_table_seating",
+                "chamber_of_relics_locked", "relics_vault_contents",
                 "round_table_chat", "round_table_timers", "round_table_tie_breaker"]:
-        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "seating" in key or "breaker" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key=="vault_room_open" else {}))
+        state.setdefault(key, {} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key=="vault_room_open" else {}))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -486,15 +466,6 @@ def initialize_relics_boxes():
     for b_key, r_info in riddles_dict.items():
         boxes[b_key] = {"name": r_info["name"], "clue": r_info["clue"], "opened": False, "opened_by": ""}
     return boxes
-
-def assign_round_table_seats():
-    alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-    random.shuffle(alive_players)
-    seating = {}
-    for idx, player in enumerate(alive_players, start=1):
-        seating[f"Seat {idx}"] = player
-    state["round_table_seating"][day_key] = seating
-    save_state(state)
 
 def render_player_portal_view(selected_player):
     p_info = state["players"][selected_player]
@@ -656,7 +627,7 @@ st.sidebar.metric("🏆 Prize Pot", f"{state['prize_pot']} pts")
 st.sidebar.divider()
 nav_options = [
     "🏰 Castle Hall (Public)",
-    "🪑 The Round Table Room",
+    "💬 Round Table WhatsApp Chat",
     "🗳️ Player Portal (Vote & Role)",
     "💍 Chamber of Relics",
     "📊 The Voting Matrix",
@@ -701,74 +672,58 @@ if nav == "🏰 Castle Hall (Public)":
         col.markdown(card, unsafe_allow_html=True)
 
 # ==========================================
-# TAB 2: THE ROUND TABLE ROOM (INTERACTIVE CHAT & CIRCLE)
+# TAB 2: ROUND TABLE WHATSAPP CHAT
 # ==========================================
-elif nav == "🪑 The Round Table Room":
-    st.title("🪑 The Great Round Table Chamber")
-    st.markdown("> *\"Debate theories in the main chamber. Select your identity once below, then type freely like an internet chatroom!\"*")
+elif nav == "💬 Round Table WhatsApp Chat":
+    st.title("💬 Round Table WhatsApp Chat")
+    st.markdown("> *\"The digital chamber of whispers. Select your name once below, then send messages instantly to debate theories, accuse suspects, and defend your honor.\"*")
 
+    # Timers
     timers = state["round_table_timers"].setdefault(day_key, {"voting_opens": "18:00", "voting_closes": "21:00"})
     t1, t2 = st.columns(2)
     t1.markdown(f"<div class='award-card'><b>🟢 Voting Opens:</b> {timers['voting_opens']}</div>", unsafe_allow_html=True)
     t2.markdown(f"<div class='award-card'><b>🔴 Voting Closes:</b> {timers['voting_closes']}</div>", unsafe_allow_html=True)
     st.divider()
 
-    left_panel, main_panel = st.columns([1, 2])
+    # WhatsApp Chat Box Wrapper
+    st.markdown('<div class="wa-chat-container">', unsafe_allow_html=True)
+    st.markdown(f'<div class="wa-header"><span>💬 The Round Table ({day_key})</span><span>🔒 Encrypted Whispers</span></div>', unsafe_allow_html=True)
 
-    with left_panel:
-        st.subheader("👥 Chamber Roster")
-        seating = state["round_table_seating"].get(day_key, {})
-        if not seating:
-            st.info("Seats not yet allocated by Host.")
+    # Persistent Identity Selector for Chat
+    chat_identity = st.selectbox("Select Your Identity for Chat:", list(state["players"].keys()), key="wa_chat_identity_persistent")
+
+    chat_messages = state["round_table_chat"].setdefault(day_key, [])
+
+    # Scrollable chat message container
+    chat_container = st.container(height=420)
+    with chat_container:
+        if chat_messages:
+            for msg in chat_messages:
+                st.markdown(f"""
+                <div class="wa-message-bubble">
+                    <b>{msg['author']}</b><br>
+                    {msg['text']}
+                    <div class="wa-message-time">{msg['time']}</div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            for seat, name in seating.items():
-                pdata = state["players"].get(name, {})
-                status_icon = "🟢" if pdata.get("status") == "Alive" else "👻"
-                st.markdown(f"**{seat}:** {status_icon} {name}")
+            st.info("No messages in the chat yet. Start the discussion below...")
 
-        st.divider()
-        st.markdown("### 🪑 Circular Table View")
-        if seating:
-            total_seats = len(seating)
-            circle_html = '<div class="rt-container"><div class="rt-table-center">THE ROUND<br>TABLE</div>'
-            for idx, (seat, name) in enumerate(seating.items()):
-                angle = (idx / total_seats) * 2 * math.pi - math.pi / 2
-                x = 50 + 38 * math.cos(angle)
-                y = 50 + 38 * math.sin(angle)
-                pdata = state["players"].get(name, {})
-                photo_url = pdata.get("photo", "")
-                avatar = f'<img src="{photo_url}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />' if photo_url else '🛡️'
-                circle_html += f'<div class="rt-seat" style="top: {y}%; left: {x}%;"><div>{avatar}</div><div>{name}</div></div>'
-            circle_html += '</div>'
-            st.markdown(circle_html, unsafe_allow_html=True)
+    # Chat Input Form
+    with st.form("wa_chat_form", clear_on_submit=True):
+        c_input, c_btn = st.columns([4, 1])
+        chat_text = c_input.text_input("Type a message...", placeholder="Type your accusation or defense...", label_visibility="collapsed")
+        chat_submit = c_btn.form_submit_button("Send ➔")
+        if chat_submit and chat_text.strip():
+            chat_messages.append({
+                "author": chat_identity,
+                "text": chat_text.strip(),
+                "time": datetime.now().strftime("%H:%M")
+            })
+            save_state(state)
+            st.rerun()
 
-    with main_panel:
-        st.subheader("💬 Live Discussion Chamber")
-        
-        # Persistent identity selector for the chat room (so users don't have to pick from a dropdown per message)
-        chat_identity = st.selectbox("Select Your Identity for Chat:", list(state["players"].keys()), key="rt_chat_identity_persistent")
-        
-        chat_messages = state["round_table_chat"].setdefault(day_key, [])
-
-        with st.form("rt_chat_form", clear_on_submit=True):
-            chat_text = st.text_input("Type your theory, defense, or accusation here...")
-            if st.form_submit_button("Send Message 💬") and chat_text.strip():
-                chat_messages.append({
-                    "author": chat_identity, 
-                    "text": chat_text.strip(), 
-                    "time": datetime.now().strftime("%H:%M")
-                })
-                save_state(state)
-                st.rerun()
-
-        st.markdown("---")
-        chat_container = st.container(height=450)
-        with chat_container:
-            if chat_messages:
-                for msg in chat_messages:
-                    st.markdown(f'<div style="background: #ffffff; border: 1px solid #c5a059; border-radius: 6px; padding: 10px; margin-bottom: 8px;"><b>{msg["author"]}</b> <span style="font-size: 11px; color: #7a756b;">({msg["time"]})</span><br>{msg["text"]}</div>', unsafe_allow_html=True)
-            else:
-                st.info("The chamber is silent. Be the first to speak...")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # TAB 3: PLAYER PORTAL
@@ -876,14 +831,8 @@ elif nav == "👑 Host Control (Neilio)":
         st.success("Sanctuary unlocked.")
         
         st.markdown("---")
-        st.subheader("🪑 Round Table Seating & Vote Tally Controls")
-        c_sc1, c_sc2 = st.columns(2)
-        if c_sc1.button("🪑 Randomly Allocate Round Table Seats"):
-            assign_round_table_seats()
-            st.success("✅ Seats allocated!")
-            st.rerun()
-
-        if c_sc2.button("⚖️ Tally Votes & Check for Ties"):
+        st.subheader("⚖️ Vote Tally Controls")
+        if st.button("⚖️ Tally Votes & Check for Ties"):
             tie_data = state["round_table_tie_breaker"].setdefault(day_key, {})
             v_key = f"{day_key}_tie" if tie_data.get("active", False) else day_key
             tally = {}
