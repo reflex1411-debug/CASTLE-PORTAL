@@ -1046,15 +1046,43 @@ elif nav == "👑 Host Control (Neilio)":
         synth_vault_key = f"Day {state['current_day']}"
         st.markdown("---")
         st.subheader(f"🏦 Host Armoury Box Grid & Control ({synth_vault_key})")
-        st.markdown("A complete visual grid of all safety deposit boxes, their current contents, and whether they have been opened!")
+        st.markdown("A complete visual grid and table of all safety deposit boxes, their current contents, and statuses:")
         
         current_vault_data = state["vault_contents"].setdefault(synth_vault_key, {})
+        if not current_vault_data:
+            alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
+            state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
+            save_state(state)
+            current_vault_data = state["vault_contents"][synth_vault_key]
+
         if current_vault_data:
+            # 1. Visual Card Grid for Host
+            box_keys = sorted(current_vault_data.keys(), key=int)
+            cols_per_row = 5
+            for i in range(0, len(box_keys), cols_per_row):
+                row_keys = box_keys[i:i + cols_per_row]
+                grid_cols = st.columns(cols_per_row)
+                for idx, b_num in enumerate(row_keys):
+                    b_dat = current_vault_data[b_num]
+                    with grid_cols[idx]:
+                        status_icon = "🔒 Opened" if b_dat.get("opened") else "📦 Closed"
+                        opener = f"({b_dat.get('opened_by', '—')})" if b_dat.get("opened") else ""
+                        st.markdown(f"""
+                        <div class="award-card" style="padding: 10px; margin-bottom: 8px;">
+                            <b>Box #{b_num}</b><br>
+                            <span style="font-size: 11px; color: #5c1d1d;"><b>{b_dat.get('type')}</b></span><br>
+                            <span style="font-size: 10px;">{status_icon} {opener}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            st.markdown("---")
+
+            # 2. Detailed Data Table
             vault_rows = []
             for b_num, b_dat in sorted(current_vault_data.items(), key=lambda x: int(x[0])):
                 vault_rows.append({
                     "Box #": int(b_num),
-                    "Item / Prize Type": b_dat.get("type"),
+                    "Type": b_dat.get("type"),
                     "Description": b_dat.get("desc"),
                     "Opened Status": "Opened 🔒" if b_dat.get("opened") else "Closed 📦",
                     "Opened By": b_dat.get("opened_by", "—")
@@ -1065,7 +1093,7 @@ elif nav == "👑 Host Control (Neilio)":
             
             if st.button("🎲 Randomize All Armoury Boxes"):
                 alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, alive_c * 3, state["vault_config"])
+                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
                 save_state(state)
                 st.success("🎲 Armoury boxes successfully randomized!")
                 st.rerun()
