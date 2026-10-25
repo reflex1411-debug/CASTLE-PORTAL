@@ -295,7 +295,7 @@ def get_default_state():
     for d_num in range(1, 13):
         default_curses[f"Day {d_num}"] = {
             "enabled": True,
-            "randomise": True,
+            "traitors_bane_enabled": True,
             "boxes": ["3", "7", "12", "15", "19"],
             "items": [
                 {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
@@ -457,16 +457,24 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     boxes = {}
     box_numbers = list(range(1, total_boxes + 1))
     
-    day_curse_data = state.get("custom_curses", {}).get(day_k, {"enabled": True, "randomise": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
+    day_curse_data = state.get("custom_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
     
-    if day_curse_data.get("randomise", True):
-        random.shuffle(box_numbers)
+    # Always shuffle/randomise the box numbers when this function is called
+    random.shuffle(box_numbers)
     
     shields_to_assign = min(config.get("shields_count", 2), total_boxes)
     
     curses_enabled = day_curse_data.get("enabled", True)
     host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])] if curses_enabled else []
     host_curse_items = day_curse_data.get("items", [])
+    
+    # Filter items based on whether Traitors' Bane is enabled
+    traitors_bane_enabled = day_curse_data.get("traitors_bane_enabled", True)
+    filtered_curse_items = []
+    for item in host_curse_items:
+        if not traitors_bane_enabled and item.get("toxicity") == "Traitor-Lethal":
+            continue
+        filtered_curse_items.append(item)
     
     relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
     if not relics_pool: relics_pool = ["Rusted Iron Key", "Dusty Tome of Spells", "Broken Dagger"]
@@ -476,8 +484,8 @@ def initialize_vault_boxes(day_k, total_boxes, config):
         b_num = str(box_numbers[i])
         if i < shields_to_assign:
             boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
-        elif curses_enabled and b_num in host_cursed_box_nums and host_curse_items:
-            c_item = host_curse_items[curse_item_idx % len(host_curse_items)]
+        elif curses_enabled and b_num in host_cursed_box_nums and filtered_curse_items:
+            c_item = filtered_curse_items[curse_item_idx % len(filtered_curse_items)]
             curse_item_idx += 1
             boxes[b_num] = {
                 "type": "Curse", 
@@ -890,7 +898,6 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
         st.error("🏰 **THE CASTLE GATES ARE CURRENTLY CLOSED!**")
         st.warning("High Host Neilio has barred entry to the player portals. Stand by in the Great Hall until the gates are reopened.")
     else:
-        # Check if already authenticated via session state
         if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
             selected_player = st.session_state["logged_in_player"]
             st.success(f"🔓 Authenticated in the shadows as **{selected_player}**.")
@@ -1114,6 +1121,13 @@ elif nav == "👑 Host Control (Neilio)":
                     "Opened By": b_dat.get("opened_by", "—")
                 })
             st.dataframe(pd.DataFrame(vault_rows).sort_values("Box #"), use_container_width=True, hide_index=True)
+            
+            if st.button("🎲 Randomise Armoury Boxes Now"):
+                alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
+                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
+                save_state(state)
+                st.success("🎲 Armoury boxes successfully randomised!")
+                st.rerun()
 
         st.markdown("---")
         st.subheader("💍 Host Relic Chamber & Riddle Editor")
@@ -1156,12 +1170,12 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.markdown("---")
         st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
-        st.caption("Configure, enable/disable, or randomize the cursed safety deposit boxes for the currently selected day.")
+        st.caption("Configure, enable/disable, or toggle the Traitors' Bane box for the currently selected day.")
         
         curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
         day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
             "enabled": True,
-            "randomise": True,
+            "traitors_bane_enabled": True,
             "boxes": ["3", "7", "12", "15", "19"],
             "items": [
                 {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
@@ -1173,9 +1187,9 @@ elif nav == "👑 Host Control (Neilio)":
         })
 
         with st.form("host_curse_config_form"):
-            c_en, c_rnd = st.columns(2)
+            c_en, c_tb = st.columns(2)
             enable_curses = c_en.toggle("💀 Enable Cursed Boxes for this Day", value=day_curse_config.get("enabled", True))
-            randomise_boxes = c_rnd.toggle("🎲 Randomise Box Positions", value=day_curse_config.get("randomise", True))
+            traitors_bane_on = c_tb.toggle("🗡️ Enable 'Traitors' Bane' Trap (Lethal to Traitors)", value=day_curse_config.get("traitors_bane_enabled", True))
             
             st.markdown("### 📦 Elect Cursed Box Numbers")
             current_boxes_str = ", ".join([str(b) for b in day_curse_config.get("boxes", ["3", "7", "12", "15", "19"])])
@@ -1205,11 +1219,11 @@ elif nav == "👑 Host Control (Neilio)":
             if save_curses_btn:
                 parsed_boxes = [b.strip() for b in boxes_input.split(",") if b.strip().isdigit()]
                 day_curse_config["enabled"] = enable_curses
-                day_curse_config["randomise"] = randomise_boxes
+                day_curse_config["traitors_bane_enabled"] = traitors_bane_on
                 day_curse_config["boxes"] = parsed_boxes
                 day_curse_config["items"] = updated_items
                 save_state(state)
-                st.success(f"✅ Successfully updated curses and toggles for {curse_day_sel}!")
+                st.success(f"✅ Successfully updated curses and Traitors' Bane settings for {curse_day_sel}!")
                 st.rerun()
 
         st.markdown("---")
