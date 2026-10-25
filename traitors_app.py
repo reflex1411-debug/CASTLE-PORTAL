@@ -1011,11 +1011,48 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
-        # --- HOST AUDIO SOUNDBOARD WITH UPLOAD & STOP/PAUSE ---
+        # --- HOST RELIC & SPECIAL ITEM ALLOCATOR ---
+        st.markdown("---")
+        st.subheader("🛡️ Host Relic & Special Item Allocator")
+        st.markdown("Manually assign shields, brooches, or game-changing relics directly to any player's inventory or active armor status.")
+        
+        with st.form("host_relic_allocator_form"):
+            target_player = st.selectbox("Select Player:", list(state["players"].keys()), key="alloc_player_sel")
+            item_categories = ["Secret Shield (Hidden Armour)", "Public Shield (Portrait Wall Armour)", "🪶 Phoenix Feather Brooch (Revival Relic)", "⏳ Hourglass Pendant", "💍 Ring of Truth", "📜 Amulet of Cleansing Fire", "👑 Crown of Thorns", "Custom Relic / Item"]
+            selected_item_type = st.selectbox("Select Item to Allocate:", item_categories, key="alloc_item_sel")
+            custom_item_name = st.text_input("Custom Item Name (if Custom selected):", value="", key="alloc_custom_name")
+            
+            if st.form_submit_button("🎁 Grant Item to Player"):
+                p_dict = state["players"][target_player]
+                assigned_desc = ""
+                
+                if "Secret Shield" in selected_item_type:
+                    p_dict["shield"] = True
+                    assigned_desc = "🔒 Secret Shield (Armor)"
+                elif "Public Shield" in selected_item_type:
+                    p_dict["public_shield"] = True
+                    assigned_desc = "🛡️ Public Shield (Armor)"
+                elif "Custom" in selected_item_type and custom_item_name.strip():
+                    assigned_desc = custom_item_name.strip()
+                else:
+                    assigned_desc = selected_item_type
+                
+                p_dict.setdefault("claimed_items", []).append({
+                    "day": day_key, "box": "Host Grant", "desc": f"✨ Granted by Host: {assigned_desc}", "time": datetime.now().strftime("%H:%M")
+                })
+                state.setdefault("host_item_audit", []).append({
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "player": target_player,
+                    "source": "Host Manual Grant",
+                    "item": assigned_desc
+                })
+                save_state(state)
+                st.success(f"✅ Successfully granted **{assigned_desc}** to **{target_player}**!")
+                st.rerun()
+
+        # --- HOST AUDIO SOUNDBOARD ---
         st.markdown("---")
         st.subheader("🎶 Host Dramatic Soundboard & Audio Library")
-        st.markdown("Play, pause, stop, or upload dramatic theme music for tension during the Round Table or banishments!")
-        
         song_uploader = st.file_uploader("Upload New MP3 Song", type=["mp3"])
         if song_uploader is not None:
             song_name = song_uploader.name
@@ -1023,23 +1060,20 @@ elif nav == "👑 Host Control (Neilio)":
                 f.write(song_uploader.getbuffer())
             state.setdefault("custom_songs", {})[song_name] = song_name
             save_state(state)
-            st.success(f"✅ Successfully uploaded and added **{song_name}** to the audio library!")
+            st.success(f"✅ Successfully uploaded and added **{song_name}**!")
             st.rerun()
 
         custom_songs = state.setdefault("custom_songs", {"traitors_theme.mp3": "traitors_theme.mp3"})
         existing_songs = [s for s in custom_songs.keys() if os.path.exists(s)]
-        
         if existing_songs:
             selected_song = st.selectbox("Select Audio Track:", existing_songs)
             col_play, col_stop = st.columns(2)
             if col_play.button("🎵 Play Track 🎶"):
                 st.audio(selected_song, format="audio/mp3", autoplay=True)
-                st.success(f"🎶 Playing **{selected_song}** across the castle!")
+                st.success(f"🎶 Playing **{selected_song}**!")
             if col_stop.button("⏹️ Stop / Silence Music"):
                 st.audio("", format="audio/mp3")
                 st.info("⏹️ Music stopped.")
-        else:
-            st.warning("⚠️ No MP3 audio files found in the directory. Please upload one above or add `traitors_theme.mp3`.")
 
         st.markdown("---")
         st.subheader("📦 Host Global Item & Discovery Audit Log")
@@ -1052,8 +1086,6 @@ elif nav == "👑 Host Control (Neilio)":
         synth_vault_key = f"Day {state['current_day']}"
         st.markdown("---")
         st.subheader(f"🏦 Host Armoury Box Grid & Control ({synth_vault_key})")
-        st.markdown("A complete visual grid and table of all safety deposit boxes, their current contents, and statuses:")
-        
         current_vault_data = state["vault_contents"].setdefault(synth_vault_key, {})
         if not current_vault_data:
             alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
@@ -1062,28 +1094,6 @@ elif nav == "👑 Host Control (Neilio)":
             current_vault_data = state["vault_contents"][synth_vault_key]
 
         if current_vault_data:
-            # 1. Visual Card Grid for Host
-            box_keys = sorted(current_vault_data.keys(), key=int)
-            cols_per_row = 5
-            for i in range(0, len(box_keys), cols_per_row):
-                row_keys = box_keys[i:i + cols_per_row]
-                grid_cols = st.columns(cols_per_row)
-                for idx, b_num in enumerate(row_keys):
-                    b_dat = current_vault_data[b_num]
-                    with grid_cols[idx]:
-                        status_icon = "🔒 Opened" if b_dat.get("opened") else "📦 Closed"
-                        opener = f"({b_dat.get('opened_by', '—')})" if b_dat.get("opened") else ""
-                        st.markdown(f"""
-                        <div class="award-card" style="padding: 10px; margin-bottom: 8px;">
-                            <b>Box #{b_num}</b><br>
-                            <span style="font-size: 11px; color: #5c1d1d;"><b>{b_dat.get('type')}</b></span><br>
-                            <span style="font-size: 10px;">{status_icon} {opener}</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-            st.markdown("---")
-
-            # 2. Detailed Data Table
             vault_rows = []
             for b_num, b_dat in sorted(current_vault_data.items(), key=lambda x: int(x[0])):
                 vault_rows.append({
@@ -1093,18 +1103,7 @@ elif nav == "👑 Host Control (Neilio)":
                     "Opened Status": "Opened 🔒" if b_dat.get("opened") else "Closed 📦",
                     "Opened By": b_dat.get("opened_by", "—")
                 })
-            
-            df_vault = pd.DataFrame(vault_rows).sort_values("Box #")
-            st.dataframe(df_vault, use_container_width=True, hide_index=True)
-            
-            if st.button("🎲 Randomize All Armoury Boxes"):
-                alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
-                save_state(state)
-                st.success("🎲 Armoury boxes successfully randomized!")
-                st.rerun()
-        else:
-            st.info("Armoury boxes not yet initialized for today.")
+            st.dataframe(pd.DataFrame(vault_rows).sort_values("Box #"), use_container_width=True, hide_index=True)
 
         st.markdown("---")
         st.subheader("💍 Host Relic Chamber & Riddle Editor")
@@ -1131,159 +1130,19 @@ elif nav == "👑 Host Control (Neilio)":
 
         st.markdown("---")
         st.subheader("👁️ Castle Login Audit Log (Active & Past 24 Hours)")
-        if "logged_in_player" in st.session_state:
-            st.info(f"🟢 **Currently Logged In on this Host Session:** {st.session_state['logged_in_player']}")
-        else:
-            st.info("⚪ Host browser session is not currently logged into a player portal.")
-
         login_history = state.setdefault("login_history", [])
-        now = datetime.now()
-        cutoff_24h = now - timedelta(hours=24)
-        recent_logins = []
-        for entry in login_history:
-            try:
-                entry_time = datetime.strptime(entry["time"], "%Y-%m-%d %H:%M:%S")
-                if entry_time >= cutoff_24h:
-                    recent_logins.append(entry)
-            except Exception:
-                pass
-
+        recent_logins = [e for e in login_history if datetime.strptime(e["time"], "%Y-%m-%d %H:%M:%S") >= datetime.now() - timedelta(hours=24)]
         if recent_logins:
-            st.markdown("#### 📜 Logins Over the Last 24 Hours:")
-            log_df = pd.DataFrame(recent_logins)
-            st.dataframe(log_df, use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(recent_logins), use_container_width=True, hide_index=True)
         else:
             st.caption("No player logins recorded in the last 24 hours.")
 
         st.markdown("---")
-        st.subheader("🏰 Castle Gates Access Control")
-        current_gates = state.get("castle_gates_open", True)
-        new_gates = st.toggle("🔓 Castle Gates Open (Allow Player Logins)", value=current_gates)
-        if new_gates != current_gates:
-            state["castle_gates_open"] = new_gates
-            save_state(state)
-            st.rerun()
-
-        st.markdown("---")
-        st.subheader("💍 Chamber of Relics Lock Control")
-        current_relics_lock = state.get("chamber_of_relics_locked", True)
-        new_relics_lock = st.toggle("🔒 Seal Chamber of Relics from Players", value=current_relics_lock)
-        if new_relics_lock != current_relics_lock:
-            state["chamber_of_relics_locked"] = new_relics_lock
-            save_state(state)
-            st.rerun()
-
-        st.markdown("---")
-        st.subheader("🏦 Safety Deposit Vault Room Access Control")
-        vault_room_status = state.get("vault_room_open", True)
-        new_vault_room_status = st.toggle("🔓 Safety Deposit Vault Room Open to Players", value=vault_room_status)
-        if new_vault_room_status != vault_room_status:
-            state["vault_room_open"] = new_vault_room_status
-            save_state(state)
-            st.rerun()
-
-        st.markdown("---")
-        st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
-        curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
-        day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
-            "boxes": ["3", "7", "12", "15", "19"],
-            "items": [
-                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
-                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
-                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
-                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
-                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
-            ]
-        })
-
-        with st.form("host_curse_config_form"):
-            st.markdown("### 📦 Elect 5 Cursed Box Numbers")
-            current_boxes_str = ", ".join([str(b) for b in day_curse_config.get("boxes", ["3", "7", "12", "15", "19"])])
-            boxes_input = st.text_input("Enter 5 box numbers separated by commas:", value=current_boxes_str)
-            
-            st.markdown("### ☠️ Configure 5 Cursed Items (Toxicity & Effects)")
-            updated_items = []
-            toxicity_options = ["Less Toxic", "Moderately Toxic", "Highly Toxic", "Traitor-Lethal", "Instant Death"]
-            target_options = ["All", "Traitor"]
-
-            for idx, c_item in enumerate(day_curse_config.get("items", [])):
-                st.markdown(f"**Curse Item #{idx + 1}**")
-                col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
-                c_name = col_i1.text_input(f"Item Name #{idx+1}", value=c_item.get("name", f"Curse #{idx+1}"), key=f"c_name_{idx}")
-                c_tox = col_i2.selectbox(f"Toxicity #{idx+1}", toxicity_options, index=toxicity_options.index(c_item.get("toxicity", "Moderately Toxic")) if c_item.get("toxicity") in toxicity_options else 0, key=f"c_tox_{idx}")
-                c_tgt = col_i3.selectbox(f"Target #{idx+1}", target_options, index=target_options.index(c_item.get("target", "All")) if c_item.get("target") in target_options else 0, key=f"c_tgt_{idx}")
-                c_desc = st.text_input(f"Description & Consequence #{idx+1}", value=c_item.get("desc", ""), key=f"c_desc_{idx}")
-                st.markdown("---")
-                updated_items.append({
-                    "name": c_name.strip(),
-                    "toxicity": c_tox,
-                    "target": c_tgt,
-                    "desc": c_desc.strip()
-                })
-
-            save_curses_btn = st.form_submit_button("💾 Save Curses & Traps for " + curse_day_sel)
-            if save_curses_btn:
-                parsed_boxes = [b.strip() for b in boxes_input.split(",") if b.strip().isdigit()]
-                day_curse_config["boxes"] = parsed_boxes
-                day_curse_config["items"] = updated_items
-                save_state(state)
-                st.success(f"✅ Successfully updated curses for {curse_day_sel}!")
-                st.rerun()
-
-        st.markdown("---")
-        st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
-        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-        current_non_voters = state["non_voters"].setdefault(day_key, [])
-        
-        selected_non_voters = st.multiselect(
-            f"Select players who did NOT vote for {day_key}:",
-            options=alive_names,
-            default=current_non_voters
-        )
-        if st.button("💾 Save Non-Voters List"):
-            state["non_voters"][day_key] = selected_non_voters
-            save_state(state)
-            st.success("✅ Non-voters updated and sent to the Public Execution Room!")
-            st.rerun()
-
-        st.divider()
-        c_v1, c_v2, c_v3 = st.columns(3)
-        if c_v1.button("🟢 Start Voting Live"):
-            state["voting_active"] = True
-            save_state(state)
-            st.success("Voting is now live for all players!")
-            st.rerun()
-        if c_v2.button("⏸️ Pause Voting"):
-            state["voting_active"] = False
-            save_state(state)
-            st.warning("Voting has been paused.")
-            st.rerun()
-        if c_v3.button("🔴 End Voting"):
-            state["voting_active"] = False
-            save_state(state)
-            st.info("Voting ended.")
-            st.rerun()
-
-        st.markdown("---")
-        st.subheader("👻 Execute Non-Voter (Ghost Strike)")
-        if st.button("🪓 Tally Execution Votes & Execute Most Voted"):
-            pub_exec_votes = state["public_execution"].get(day_key, {})
-            tally = {}
-            for v in pub_exec_votes.values():
-                tally[v] = tally.get(v, 0) + 1
-            if tally:
-                max_v = max(tally.values())
-                top_t = [t for t, c in tally.items() if c == max_v]
-                if len(top_t) > 1:
-                    st.error(f"⚖️ **TIE DETECTED IN EXECUTION:** Between: {', '.join(top_t)}. Automatic re-vote required!")
-                else:
-                    victim = top_t[0]
-                    state["players"][victim]["status"] = "Executed (No Vote Penalty)"
-                    state["players"][victim]["eliminated_day"] = day_key
-                    save_state(state)
-                    st.error(f"👻 **GHOST STRIKE!** {victim} received {max_v} execution votes and has been instantly struck down by the Ghost!")
-            else:
-                st.warning("No execution votes recorded.")
+        c_g1, c_g2, c_g3 = st.columns(3)
+        state["castle_gates_open"] = c_g1.toggle("🔓 Castle Gates Open", value=state.get("castle_gates_open", True))
+        state["chamber_of_relics_locked"] = c_g2.toggle("🔒 Seal Chamber of Relics", value=state.get("chamber_of_relics_locked", True))
+        state["vault_room_open"] = c_g3.toggle("🏦 Vault Room Open", value=state.get("vault_room_open", True))
+        save_state(state)
 
         st.markdown("---")
         st.subheader("1. Game Day, Phase & Decrees")
@@ -1318,44 +1177,3 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.success("Roster saved!")
             st.rerun()
-
-        st.markdown("---")
-        st.subheader("4. ☁️ Castle Vault Backup & Restore Sanctuary")
-        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
-        
-        with b_col1:
-            json_bytes = json.dumps(state, indent=4).encode("utf-8")
-            st.download_button(
-                label="⬇️ Download Backup",
-                data=json_bytes,
-                file_name=f"castle_state_day_{state['current_day']}.json",
-                mime="application/json"
-            )
-            
-        with b_col2:
-            if st.button("🔄 Restore Last Checkpoint"):
-                if os.path.exists(BACKUP_FILE):
-                    with open(BACKUP_FILE, "r") as f:
-                        backup_state = json.load(f)
-                    with open(DATA_FILE, "w") as f:
-                        json.dump(backup_state, f, indent=4)
-                    st.success("✅ Castle restored to last checkpoint!")
-                    st.rerun()
-                else:
-                    st.warning("No backup checkpoint found.")
-
-        with b_col3:
-            if st.button("⚠️ Reset to Day 1 Defaults"):
-                reset_state = get_default_state()
-                save_state(reset_state)
-                st.warning("Castle reset to Day 1 defaults.")
-                st.rerun()
-
-        with b_col4:
-            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
-            if uploaded_file is not None:
-                if st.button("🔄 Confirm File Upload"):
-                    restored_state = json.load(uploaded_file)
-                    save_state(restored_state)
-                    st.success("✅ Vault successfully restored from uploaded file!")
-                    st.rerun()
