@@ -361,7 +361,7 @@ def get_default_state():
         "non_voters": {},
         "public_execution": {},
         "login_history": [],
-        "host_item_audit": []  # Global log of items received or found
+        "host_item_audit": []
     }
 
 def load_state():
@@ -503,7 +503,6 @@ def render_player_portal_view(selected_player):
 
     st.divider()
 
-    # --- SHIELD VISIBILITY CONTROL ---
     has_secret_shield = p_info.get("shield", False)
     has_public_shield = p_info.get("public_shield", False)
     if has_secret_shield or has_public_shield:
@@ -645,13 +644,11 @@ def render_player_portal_view(selected_player):
                                                 if b_data.get("toxicity") == "Instant Death" or ("Traitor" in str(role) and b_data.get("target_role") == "Traitor"):
                                                     state["players"][selected_player]["status"] = "Murdered"
                                                     state["players"][selected_player]["eliminated_day"] = day_key
-                                                    # Trigger Last Will modal / flag
                                                     st.session_state["instant_death_player"] = selected_player
 
                                             save_state(state)
                                             st.rerun()
 
-    # Instant Death Last Will popup check
     if st.session_state.get("instant_death_player") == selected_player:
         st.error("⚡ **INSTANT DEATH TRIGGERED!** You opened a lethal box. Send your final message to the group:")
         with st.form("last_will_form"):
@@ -741,7 +738,6 @@ if nav == "🏰 Castle Hall (Public)":
         photo_url = pdata.get("photo", "")
         avatar = f'<img src="{photo_url}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #c5a059;" />' if photo_url else '🛡️'
         
-        # Display Public Shield badge if enabled
         public_shield_badge = " 🛡️" if pdata.get("public_shield", False) else ""
 
         if status == "Alive":
@@ -1002,7 +998,6 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
-        # --- NEW: HOST GLOBAL ITEM & RECEIVE AUDIT LOG ---
         st.markdown("---")
         st.subheader("📦 Host Global Item & Discovery Audit Log")
         st.markdown("A complete record of all items, shields, and prizes found or received by players across the castle:")
@@ -1012,7 +1007,6 @@ elif nav == "👑 Host Control (Neilio)":
         else:
             st.info("No items have been found or received yet.")
 
-        # --- NEW: HOST VAULT INSPECTOR & MANUAL CONTROLLER ---
         synth_vault_key = f"Day {state['current_day']}"
         st.markdown("---")
         st.subheader(f"🏦 Host Vault Inspector & Control ({synth_vault_key})")
@@ -1040,7 +1034,6 @@ elif nav == "👑 Host Control (Neilio)":
         else:
             st.info("Vault boxes not yet initialized for today. Players will generate them when opening the portal.")
 
-        # --- NEW: HOST RELIC & RIDDLE EDITOR ---
         st.markdown("---")
         st.subheader("💍 Host Relic Chamber & Riddle Editor")
         st.markdown("Rewrite riddles, clues, and replace items for the Chamber of Relics boxes:")
@@ -1303,5 +1296,3 @@ elif nav == "👑 Host Control (Neilio)":
                     save_state(restored_state)
                     st.success("✅ Vault successfully restored from uploaded file!")
                     st.rerun()
-
-<FollowUp/>
