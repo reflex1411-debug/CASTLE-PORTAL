@@ -294,6 +294,8 @@ def get_default_state():
     default_riddles = {}
     for d_num in range(1, 13):
         default_curses[f"Day {d_num}"] = {
+            "enabled": True,
+            "randomise": True,
             "boxes": ["3", "7", "12", "15", "19"],
             "items": [
                 {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
@@ -454,12 +456,16 @@ def compute_superlatives(state):
 def initialize_vault_boxes(day_k, total_boxes, config):
     boxes = {}
     box_numbers = list(range(1, total_boxes + 1))
-    random.shuffle(box_numbers)
+    
+    day_curse_data = state.get("custom_curses", {}).get(day_k, {"enabled": True, "randomise": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
+    
+    if day_curse_data.get("randomise", True):
+        random.shuffle(box_numbers)
     
     shields_to_assign = min(config.get("shields_count", 2), total_boxes)
     
-    day_curse_data = state.get("custom_curses", {}).get(day_k, {"boxes": [], "items": []})
-    host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])]
+    curses_enabled = day_curse_data.get("enabled", True)
+    host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])] if curses_enabled else []
     host_curse_items = day_curse_data.get("items", [])
     
     relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
@@ -470,7 +476,7 @@ def initialize_vault_boxes(day_k, total_boxes, config):
         b_num = str(box_numbers[i])
         if i < shields_to_assign:
             boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
-        elif b_num in host_cursed_box_nums and host_curse_items:
+        elif curses_enabled and b_num in host_cursed_box_nums and host_curse_items:
             c_item = host_curse_items[curse_item_idx % len(host_curse_items)]
             curse_item_idx += 1
             boxes[b_num] = {
@@ -884,42 +890,44 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
         st.error("🏰 **THE CASTLE GATES ARE CURRENTLY CLOSED!**")
         st.warning("High Host Neilio has barred entry to the player portals. Stand by in the Great Hall until the gates are reopened.")
     else:
-        default_player_idx = 0
+        # Check if already authenticated via session state
         if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
-            default_player_idx = list(state["players"].keys()).index(st.session_state["logged_in_player"])
+            selected_player = st.session_state["logged_in_player"]
+            st.success(f"🔓 Authenticated in the shadows as **{selected_player}**.")
+            
+            if st.button("🔒 Lock Portal & Switch User"):
+                del st.session_state["logged_in_player"]
+                st.rerun()
 
-        col1, col2 = st.columns(2)
-        selected_player = col1.selectbox("Select Your Name", list(state["players"].keys()), index=default_player_idx)
-        entered_pin = col2.text_input("Enter PIN", type="password")
-
-        is_authenticated = False
-        p_info = state["players"][selected_player]
-        
-        if entered_pin and entered_pin == str(p_info.get("pin", "")):
-            st.session_state["logged_in_player"] = selected_player
-            login_entry = {"player": selected_player, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "day": day_key}
-            state.setdefault("login_history", []).append(login_entry)
-            save_state(state)
-            send_login_alert(selected_player)
-            is_authenticated = True
-        elif "logged_in_player" in st.session_state and st.session_state["logged_in_player"] == selected_player:
-            is_authenticated = True
-
-        if is_authenticated:
-            st.success(f"🔓 Authenticated in the shadows as **{selected_player}**. The Castle remembers you across all chambers!")
             with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
                 uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
                 if uploaded_file is not None:
-                    p_info["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
+                    state["players"][selected_player]["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
                     save_state(state)
                     st.success("✨ Portrait updated!")
                     st.rerun()
-                if p_info.get("photo"): st.image(p_info["photo"], width=100)
+                if state["players"][selected_player].get("photo"): 
+                    st.image(state["players"][selected_player]["photo"], width=100)
+
             render_player_portal_view(selected_player)
-        elif entered_pin:
-            st.error("❌ Incorrect PIN.")
         else:
-            st.info("💡 Enter your 4-digit PIN above to unlock your portal and lock in your identity across the Castle.")
+            st.caption("Select your name and enter your personal 4-digit PIN to unlock your portal session.")
+            col1, col2 = st.columns(2)
+            login_player = col1.selectbox("Select Your Name", list(state["players"].keys()))
+            entered_pin = col2.text_input("Enter PIN", type="password")
+
+            if st.button("Unlock Portal 🗝️"):
+                p_info = state["players"][login_player]
+                if entered_pin and entered_pin == str(p_info.get("pin", "")):
+                    st.session_state["logged_in_player"] = login_player
+                    login_entry = {"player": login_player, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "day": day_key}
+                    state.setdefault("login_history", []).append(login_entry)
+                    save_state(state)
+                    send_login_alert(login_player)
+                    st.success(f"Welcome back, {login_player}!")
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect PIN.")
 
 # ==========================================
 # TAB 5: CHAMBER OF RELICS
@@ -928,9 +936,11 @@ elif nav == "💍 Chamber of Relics":
     st.title("💍 The Alchemist's Chamber of Relics")
     if state.get("chamber_of_relics_locked", True):
         st.warning("🔒 **THE CHAMBER OF RELICS IS SEALED!**")
+    elif "logged_in_player" not in st.session_state or st.session_state["logged_in_player"] not in state["players"]:
+        st.error("🔒 **PORTAL LOCKED:** You must log into your Player Portal using your 4-digit PIN before you can enter the Chamber of Relics!")
     else:
-        r_player = st.session_state.get("logged_in_player", list(state["players"].keys())[0])
-        st.info(f"🔑 Accessing Relics as remembered player: **{r_player}** (Switch via Player Portal if needed)")
+        r_player = st.session_state["logged_in_player"]
+        st.success(f"🔑 Authenticated in the Chamber as: **{r_player}**")
 
         p_dat = state["players"][r_player]
         relics_contents = state["relics_vault_contents"]
@@ -1145,6 +1155,119 @@ elif nav == "👑 Host Control (Neilio)":
         save_state(state)
 
         st.markdown("---")
+        st.subheader("💀 Host Curse & Traitor Trap Matrix (Daily Curses)")
+        st.caption("Configure, enable/disable, or randomize the cursed safety deposit boxes for the currently selected day.")
+        
+        curse_day_sel = st.selectbox("Select Day for Curses Configuration:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="curse_day_select")
+        day_curse_config = state.setdefault("custom_curses", {}).setdefault(curse_day_sel, {
+            "enabled": True,
+            "randomise": True,
+            "boxes": ["3", "7", "12", "15", "19"],
+            "items": [
+                {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."},
+                {"name": "Whispering Chokeweed", "toxicity": "Moderately Toxic", "target": "All", "desc": "🌿 Coughing fit: Lose 50 points from group pot & forced truth at Round Table."},
+                {"name": "Turret Venom", "toxicity": "Highly Toxic", "target": "All", "desc": "☠️ Heavy poison: Lose 100 points from group pot & automatically nominated for murder."},
+                {"name": "Traitors' Bane", "toxicity": "Traitor-Lethal", "target": "Traitor", "desc": "🗡️ TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!"},
+                {"name": "Gorgon's Gaze", "toxicity": "Instant Death", "target": "All", "desc": "⚡ INSTANT DEATH! Whoever opens this cursed box is immediately struck down and murdered!"}
+            ]
+        })
+
+        with st.form("host_curse_config_form"):
+            c_en, c_rnd = st.columns(2)
+            enable_curses = c_en.toggle("💀 Enable Cursed Boxes for this Day", value=day_curse_config.get("enabled", True))
+            randomise_boxes = c_rnd.toggle("🎲 Randomise Box Positions", value=day_curse_config.get("randomise", True))
+            
+            st.markdown("### 📦 Elect Cursed Box Numbers")
+            current_boxes_str = ", ".join([str(b) for b in day_curse_config.get("boxes", ["3", "7", "12", "15", "19"])])
+            boxes_input = st.text_input("Enter box numbers separated by commas:", value=current_boxes_str)
+            
+            st.markdown("### ☠️ Configure Cursed Items (Toxicity & Effects)")
+            updated_items = []
+            toxicity_options = ["Less Toxic", "Moderately Toxic", "Highly Toxic", "Traitor-Lethal", "Instant Death"]
+            target_options = ["All", "Traitor"]
+
+            for idx, c_item in enumerate(day_curse_config.get("items", [])):
+                st.markdown(f"**Curse Item #{idx + 1}**")
+                col_i1, col_i2, col_i3 = st.columns([2, 1, 1])
+                c_name = col_i1.text_input(f"Item Name #{idx+1}", value=c_item.get("name", f"Curse #{idx+1}"), key=f"c_name_{idx}")
+                c_tox = col_i2.selectbox(f"Toxicity #{idx+1}", toxicity_options, index=toxicity_options.index(c_item.get("toxicity", "Moderately Toxic")) if c_item.get("toxicity") in toxicity_options else 0, key=f"c_tox_{idx}")
+                c_tgt = col_i3.selectbox(f"Target #{idx+1}", target_options, index=target_options.index(c_item.get("target", "All")) if c_item.get("target") in target_options else 0, key=f"c_tgt_{idx}")
+                c_desc = st.text_input(f"Description & Consequence #{idx+1}", value=c_item.get("desc", ""), key=f"c_desc_{idx}")
+                st.markdown("---")
+                updated_items.append({
+                    "name": c_name.strip(),
+                    "toxicity": c_tox,
+                    "target": c_tgt,
+                    "desc": c_desc.strip()
+                })
+
+            save_curses_btn = st.form_submit_button("💾 Save Curses & Traps for " + curse_day_sel)
+            if save_curses_btn:
+                parsed_boxes = [b.strip() for b in boxes_input.split(",") if b.strip().isdigit()]
+                day_curse_config["enabled"] = enable_curses
+                day_curse_config["randomise"] = randomise_boxes
+                day_curse_config["boxes"] = parsed_boxes
+                day_curse_config["items"] = updated_items
+                save_state(state)
+                st.success(f"✅ Successfully updated curses and toggles for {curse_day_sel}!")
+                st.rerun()
+
+        st.markdown("---")
+        st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
+        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
+        current_non_voters = state["non_voters"].setdefault(day_key, [])
+        
+        selected_non_voters = st.multiselect(
+            f"Select players who did NOT vote for {day_key}:",
+            options=alive_names,
+            default=current_non_voters
+        )
+        if st.button("💾 Save Non-Voters List"):
+            state["non_voters"][day_key] = selected_non_voters
+            save_state(state)
+            st.success("✅ Non-voters updated and sent to the Public Execution Room!")
+            st.rerun()
+
+        st.divider()
+        c_v1, c_v2, c_v3 = st.columns(3)
+        if c_v1.button("🟢 Start Voting Live"):
+            state["voting_active"] = True
+            save_state(state)
+            st.success("Voting is now live for all players!")
+            st.rerun()
+        if c_v2.button("⏸️ Pause Voting"):
+            state["voting_active"] = False
+            save_state(state)
+            st.warning("Voting has been paused.")
+            st.rerun()
+        if c_v3.button("🔴 End Voting"):
+            state["voting_active"] = False
+            save_state(state)
+            st.info("Voting ended.")
+            st.rerun()
+
+        st.markdown("---")
+        st.subheader("👻 Execute Non-Voter (Ghost Strike)")
+        if st.button("🪓 Tally Execution Votes & Execute Most Voted"):
+            pub_exec_votes = state["public_execution"].get(day_key, {})
+            tally = {}
+            for v in pub_exec_votes.values():
+                tally[v] = tally.get(v, 0) + 1
+            if tally:
+                max_v = max(tally.values())
+                top_t = [t for t, c in tally.items() if c == max_v]
+                if len(top_t) > 1:
+                    st.error(f"⚖️ **TIE DETECTED IN EXECUTION:** Between: {', '.join(top_t)}. Automatic re-vote required!")
+                else:
+                    victim = top_t[0]
+                    state["players"][victim]["status"] = "Executed (No Vote Penalty)"
+                    state["players"][victim]["eliminated_day"] = day_key
+                    save_state(state)
+                    st.error(f"👻 **GHOST STRIKE!** {victim} received {max_v} execution votes and has been instantly struck down by the Ghost!")
+            else:
+                st.warning("No execution votes recorded.")
+
+        st.markdown("---")
         st.subheader("1. Game Day, Phase & Decrees")
         c1, c2, c3, c4 = st.columns(4)
         new_day = c1.number_input("Day", 1, 12, state["current_day"])
@@ -1177,3 +1300,44 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.success("Roster saved!")
             st.rerun()
+
+        st.markdown("---")
+        st.subheader("4. ☁️ Castle Vault Backup & Restore Sanctuary")
+        b_col1, b_col2, b_col3, b_col4 = st.columns(4)
+        
+        with b_col1:
+            json_bytes = json.dumps(state, indent=4).encode("utf-8")
+            st.download_button(
+                label="⬇️ Download Backup",
+                data=json_bytes,
+                file_name=f"castle_state_day_{state['current_day']}.json",
+                mime="application/json"
+            )
+            
+        with b_col2:
+            if st.button("🔄 Restore Last Checkpoint"):
+                if os.path.exists(BACKUP_FILE):
+                    with open(BACKUP_FILE, "r") as f:
+                        backup_state = json.load(f)
+                    with open(DATA_FILE, "w") as f:
+                        json.dump(backup_state, f, indent=4)
+                    st.success("✅ Castle restored to last checkpoint!")
+                    st.rerun()
+                else:
+                    st.warning("No backup checkpoint found.")
+
+        with b_col3:
+            if st.button("⚠️ Reset to Day 1 Defaults"):
+                reset_state = get_default_state()
+                save_state(reset_state)
+                st.warning("Castle reset to Day 1 defaults.")
+                st.rerun()
+
+        with b_col4:
+            uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                if st.button("🔄 Confirm File Upload"):
+                    restored_state = json.load(uploaded_file)
+                    save_state(restored_state)
+                    st.success("✅ Vault successfully restored from uploaded file!")
+                    st.rerun()
