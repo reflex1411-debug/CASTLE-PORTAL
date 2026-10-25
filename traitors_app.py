@@ -421,6 +421,29 @@ day_key = f"Day {state['current_day']}"
 fp_key = f"Round {state['fire_pit_round']}"
 is_finale_unlocked = (state["phase"] == "🏆 The Grand Reveal (Finale)")
 
+# ==========================================
+# RELIC AUTOMATION HELPER FUNCTIONS
+# ==========================================
+def player_has_relic(player_name, relic_keyword):
+    """Checks if a player holds an item containing a specific keyword in their inventory."""
+    p_data = state["players"].get(player_name, {})
+    claimed = p_data.get("claimed_items", [])
+    for item in claimed:
+        if relic_keyword.lower() in item.get("desc", "").lower():
+            return True
+    return False
+
+def consume_relic(player_name, relic_keyword):
+    """Removes a single-use relic from a player's inventory once triggered."""
+    p_data = state["players"].get(player_name, {})
+    claimed = p_data.get("claimed_items", [])
+    for idx, item in enumerate(claimed):
+        if relic_keyword.lower() in item.get("desc", "").lower():
+            removed = claimed.pop(idx)
+            save_state(state)
+            return removed
+    return None
+
 def get_public_identity(pdata, force_reveal=False):
     status = str(pdata.get("status", "Alive"))
     role = str(pdata.get("role", "Faithful"))
@@ -551,6 +574,23 @@ def render_player_portal_view(selected_player):
         else:
             st.info("You haven't opened any Safety Deposit Boxes or Relic Chambers yet today.")
 
+    # --- AUTOMATED JESTER'S GOLD TOOTH FEATURE ---
+    if player_has_relic(selected_player, "Jester’s Gold Tooth"):
+        st.divider()
+        with st.expander("🃏 Unleash Jester's Gold Tooth (Point Swap)"):
+            other_players = [p for p in state["players"] if p != selected_player]
+            target_swap = st.selectbox("Choose player to swap point totals with:", other_players, key=f"jester_target_{selected_player}")
+            if st.button("🃏 Swap Points Now", key=f"jester_btn_{selected_player}"):
+                consume_relic(selected_player, "Jester’s Gold Tooth")
+                my_pts = state["players"][selected_player]["points"]
+                target_pts = state["players"][target_swap]["points"]
+                
+                state["players"][selected_player]["points"] = target_pts
+                state["players"][target_swap]["points"] = my_pts
+                save_state(state)
+                st.success(f"🃏 Chaos reigns! You successfully swapped point totals with {target_swap}!")
+                st.rerun()
+
     st.divider()
 
     if state["phase"] == "The Fire Pit (Endgame)":
@@ -592,7 +632,12 @@ def render_player_portal_view(selected_player):
                     if st.form_submit_button("Lock In Vote 🕯️"):
                         if not reason.strip(): st.error("Please provide a short reason!")
                         else:
-                            state["votes"].setdefault(vote_key, {})[selected_player] = {"target": target, "reason": reason.strip(), "timestamp": datetime.now().strftime("%H:%M")}
+                            # --- AUTOMATED MIRROR OF VANITY CHECK ---
+                            voter_key = selected_player
+                            if player_has_relic(selected_player, "Mirror of Vanity"):
+                                voter_key = f"🔒 [ANONYMOUS SHADOW — {selected_player}]"
+
+                            state["votes"].setdefault(vote_key, {})[voter_key] = {"target": target, "reason": reason.strip(), "timestamp": datetime.now().strftime("%H:%M")}
                             save_state(state)
                             st.success(f"✅ Vote against **{target}** recorded.")
     else:
@@ -619,6 +664,17 @@ def render_player_portal_view(selected_player):
             st.warning("👻 Ghosts cannot tamper with the Vault!")
         else:
             st.markdown(f"**Attempts Today:** `{attempts} / 3 used`")
+            
+            # --- AUTOMATED HOURGLASS PENDANT CHECK FOR ATTEMPTS ---
+            if attempts >= 3 and player_has_relic(selected_player, "Hourglass Pendant"):
+                st.warning("⏳ You have used all 3 attempts, but your **Hourglass Pendant** can rewind time!")
+                if st.button("Use Hourglass Pendant for +1 Bonus Attempt ⏳"):
+                    consume_relic(selected_player, "Hourglass Pendant")
+                    state["vault_attempts"][day_key][selected_player] = 2  # Reset back to 2 so they get 1 more try
+                    save_state(state)
+                    st.success("⏳ Time rewinds! Your Hourglass Pendant shatters, granting you 1 additional vault box attempt.")
+                    st.rerun()
+
             if not riddle_solved:
                 st.markdown(f"### 🧩 Gatekeeper Riddle\n> *\"{daily_riddle['question']}\"*")
                 with st.form(f"riddle_form_{selected_player}"):
@@ -667,9 +723,16 @@ def render_player_portal_view(selected_player):
                                                 state["players"][selected_player]["points"] += b_data["value"]
                                             elif b_data["type"] == "Curse":
                                                 if b_data.get("toxicity") == "Instant Death" or ("Traitor" in str(role) and b_data.get("target_role") == "Traitor"):
-                                                    state["players"][selected_player]["status"] = "Murdered"
-                                                    state["players"][selected_player]["eliminated_day"] = day_key
-                                                    st.session_state["instant_death_player"] = selected_player
+                                                    
+                                                    # --- AUTOMATED PHOENIX FEATHER BROOCH CHECK ---
+                                                    if player_has_relic(selected_player, "Phoenix Feather Brooch"):
+                                                        consumed = consume_relic(selected_player, "Phoenix Feather Brooch")
+                                                        st.balloons()
+                                                        st.success(f"🔥 **PHOENIX REBIRTH TRIGGERED!** Your *{consumed['desc']}* turns to ash, saving you from instant death!")
+                                                    else:
+                                                        state["players"][selected_player]["status"] = "Murdered"
+                                                        state["players"][selected_player]["eliminated_day"] = day_key
+                                                        st.session_state["instant_death_player"] = selected_player
 
                                             save_state(state)
                                             st.rerun()
@@ -1035,7 +1098,6 @@ elif nav == "👑 Host Control (Neilio)":
             col_t1, col_t2, col_t3 = st.columns(3)
             from_player = col_t1.selectbox("From Player:", list(state["players"].keys()), key="transfer_from_sel")
             
-            # Get items claimed by source player
             source_claimed = state["players"][from_player].get("claimed_items", [])
             source_item_descs = [item["desc"] for item in source_claimed] if source_claimed else ["No items in inventory"]
             
@@ -1048,7 +1110,6 @@ elif nav == "👑 Host Control (Neilio)":
                 elif from_player == to_player:
                     st.error("Cannot transfer an item to the same player!")
                 else:
-                    # Find and pop item from source
                     transferred_item = None
                     for idx, item in enumerate(source_claimed):
                         if item["desc"] == item_to_transfer:
@@ -1056,10 +1117,8 @@ elif nav == "👑 Host Control (Neilio)":
                             break
                     
                     if transferred_item:
-                        # Add to destination player
                         state["players"][to_player].setdefault("claimed_items", []).append(transferred_item)
                         
-                        # Handle special status transfers (like shields)
                         if "Shield" in transferred_item["desc"]:
                             if "Secret" in transferred_item["desc"] or "Armor" in transferred_item["desc"]:
                                 state["players"][from_player]["shield"] = False
