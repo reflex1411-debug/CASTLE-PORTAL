@@ -394,6 +394,13 @@ def load_state():
         p.setdefault("photo", "")
         p.setdefault("points", 0)
         p.setdefault("claimed_items", [])
+        
+    # AUTO-INITIALIZE TODAY'S ARMOURY BOXES IF MISSING
+    synth_v_key = f"Day {state.get('current_day', 1)}"
+    if synth_v_key not in state.setdefault("vault_contents", {}):
+        alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
+        state["vault_contents"][synth_v_key] = initialize_vault_boxes(synth_v_key, max(alive_c * 3, 15), state["vault_config"])
+
     return state
 
 def save_state(state):
@@ -1054,7 +1061,6 @@ elif nav == "👑 Host Control (Neilio)":
                     "Opened By": b_dat.get("opened_by", "—")
                 })
             
-            # Displayed as a clean grid table
             df_vault = pd.DataFrame(vault_rows).sort_values("Box #")
             st.dataframe(df_vault, use_container_width=True, hide_index=True)
             
@@ -1317,3 +1323,5 @@ elif nav == "👑 Host Control (Neilio)":
                     save_state(restored_state)
                     st.success("✅ Vault successfully restored from uploaded file!")
                     st.rerun()
+
+<FollowUp/>
