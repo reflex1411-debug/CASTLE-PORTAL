@@ -360,7 +360,8 @@ def get_default_state():
         "round_table_tie_breaker": {},
         "non_voters": {},
         "public_execution": {},
-        "login_history": []
+        "login_history": [],
+        "host_item_audit": []  # Global log of items received or found
     }
 
 def load_state():
@@ -375,8 +376,8 @@ def load_state():
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
-                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history"]:
-        state.setdefault(key, [] if key == "login_history" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {})))
+                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history", "host_item_audit"]:
+        state.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {})))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -502,6 +503,22 @@ def render_player_portal_view(selected_player):
 
     st.divider()
 
+    # --- SHIELD VISIBILITY CONTROL ---
+    has_secret_shield = p_info.get("shield", False)
+    has_public_shield = p_info.get("public_shield", False)
+    if has_secret_shield or has_public_shield:
+        s_type = "🛡️ Public Shield (Displayed on Great Hall Wall)" if has_public_shield else "🔒 Secret Shield (Hidden in Portal)"
+        st.info(f"Active Armor: **{s_type}**")
+        with st.form(f"shield_visibility_{selected_player}"):
+            new_pub_toggle = st.toggle("Make Shield Public (Display on Portrait Wall)", value=has_public_shield)
+            if st.form_submit_button("Update Shield Visibility"):
+                p_info["public_shield"] = new_pub_toggle
+                save_state(state)
+                st.success("✅ Shield visibility updated!")
+                st.rerun()
+
+    st.divider()
+
     with st.expander("📦 My Claimed Vault Items & Winnings History", expanded=True):
         claimed_list = p_info.get("claimed_items", [])
         if claimed_list:
@@ -607,16 +624,49 @@ def render_player_portal_view(selected_player):
                                             vault_contents[b_key]["opened"] = True
                                             vault_contents[b_key]["opened_by"] = selected_player
                                             state["vault_attempts"].setdefault(day_key, {})[selected_player] = attempts + 1
+                                            
+                                            item_log_desc = b_data["desc"]
                                             state["players"][selected_player].setdefault("claimed_items", []).append({
-                                                "day": day_key, "box": f"Box #{b_key}", "desc": b_data["desc"], "time": datetime.now().strftime("%H:%M")
+                                                "day": day_key, "box": f"Box #{b_key}", "desc": item_log_desc, "time": datetime.now().strftime("%H:%M")
                                             })
-                                            if b_data["type"] == "Shield": state["players"][selected_player]["shield"] = True
-                                            elif b_data["type"] == "Points": state["prize_pot"] += b_data["value"]
+                                            state.setdefault("host_item_audit", []).append({
+                                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                                "player": selected_player,
+                                                "source": f"{day_key} Box #{b_key}",
+                                                "item": item_log_desc
+                                            })
+
+                                            if b_data["type"] == "Shield":
+                                                state["players"][selected_player]["shield"] = True
+                                            elif b_data["type"] == "Points":
+                                                state["prize_pot"] += b_data["value"]
+                                                state["players"][selected_player]["points"] += b_data["value"]
                                             elif b_data["type"] == "Curse":
                                                 if b_data.get("toxicity") == "Instant Death" or ("Traitor" in str(role) and b_data.get("target_role") == "Traitor"):
                                                     state["players"][selected_player]["status"] = "Murdered"
+                                                    state["players"][selected_player]["eliminated_day"] = day_key
+                                                    # Trigger Last Will modal / flag
+                                                    st.session_state["instant_death_player"] = selected_player
+
                                             save_state(state)
                                             st.rerun()
+
+    # Instant Death Last Will popup check
+    if st.session_state.get("instant_death_player") == selected_player:
+        st.error("⚡ **INSTANT DEATH TRIGGERED!** You opened a lethal box. Send your final message to the group:")
+        with st.form("last_will_form"):
+            last_msg = st.text_input("Your Last Words / Testament:")
+            if st.form_submit_button("Publish Final Words to Group 📜"):
+                if last_msg.strip():
+                    state.setdefault("round_table_chat", {}).setdefault(day_key, []).append({
+                        "author": f"👻 {selected_player} (Last Will)",
+                        "text": f"⚠️ *My dying words from the grave:* \"{last_msg.strip()}\"",
+                        "time": datetime.now().strftime("%H:%M")
+                    })
+                    save_state(state)
+                del st.session_state["instant_death_player"]
+                st.success("Your final message has echoed through the castle.")
+                st.rerun()
 
     # --- TRAITOR TURRET ---
     if "Traitor" in role and status in ["Alive", "Undead"]:
@@ -691,13 +741,15 @@ if nav == "🏰 Castle Hall (Public)":
         photo_url = pdata.get("photo", "")
         avatar = f'<img src="{photo_url}" style="width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 2px solid #c5a059;" />' if photo_url else '🛡️'
         
+        # Display Public Shield badge if enabled
+        public_shield_badge = " 🛡️" if pdata.get("public_shield", False) else ""
+
         if status == "Alive":
-            badge = " 🛡️" if pdata.get("public_shield") else ""
             rev_role, r_class = get_public_identity(pdata, force_reveal=is_finale_unlocked)
-            card = f'<div class="player-card">{avatar}<div style="font-weight:bold; font-size:15px;">{name}{badge}</div><div style="color:#006666; font-size:12px;">🟢 Alive</div><div class="{r_class}" style="font-size:11px;">{rev_role}</div></div>'
+            card = f'<div class="player-card">{avatar}<div style="font-weight:bold; font-size:15px;">{name}{public_shield_badge}</div><div style="color:#006666; font-size:12px;">🟢 Alive</div><div class="{r_class}" style="font-size:11px;">{rev_role}</div></div>'
         elif status == "Undead":
             rev_role, r_class = get_public_identity(pdata, force_reveal=is_finale_unlocked)
-            card = f'<div class="player-card player-card-undead"><div class="undead-ghost">👻</div>{avatar}<div style="font-weight:bold; font-size:15px; color:#4a154b;">{name}</div><div style="font-size:12px; color:#4a154b; font-weight:bold;">👻 Undead</div><div class="{r_class}" style="font-size:11px;">{rev_role}</div></div>'
+            card = f'<div class="player-card player-card-undead"><div class="undead-ghost">👻</div>{avatar}<div style="font-weight:bold; font-size:15px; color:#4a154b;">{name}{public_shield_badge}</div><div style="font-size:12px; color:#4a154b; font-weight:bold;">👻 Undead</div><div class="{r_class}" style="font-size:11px;">{rev_role}</div></div>'
         else:
             rev_role, r_class = get_public_identity(pdata, force_reveal=is_finale_unlocked)
             card = f'<div class="player-card player-card-dead"><div class="blood-cross">❌</div>{avatar}<div style="font-weight:bold; font-size:15px; text-decoration:line-through; color:#5c1d1d;">{name}</div><div style="font-size:12px; color:#5c1d1d; font-weight:bold;">{status}</div><div class="{r_class}" style="font-size:11px;">{rev_role}</div></div>'
@@ -898,7 +950,16 @@ elif nav == "💍 Chamber of Relics":
                         if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
                             b_info["opened"] = True
                             b_info["opened_by"] = r_player
-                            state["players"][r_player].setdefault("claimed_items", []).append({"day": "Relics", "box": b_key, "desc": b_info['name'], "time": datetime.now().strftime("%H:%M")})
+                            item_found_desc = b_info['name']
+                            state["players"][r_player].setdefault("claimed_items", []).append({
+                                "day": "Chamber of Relics", "box": b_key, "desc": item_found_desc, "time": datetime.now().strftime("%H:%M")
+                            })
+                            state.setdefault("host_item_audit", []).append({
+                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "player": r_player,
+                                "source": f"Chamber of Relics ({b_key})",
+                                "item": item_found_desc
+                            })
                             save_state(state)
                             st.balloons()
                             st.success("🎉 Claimed!")
@@ -941,6 +1002,67 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        # --- NEW: HOST GLOBAL ITEM & RECEIVE AUDIT LOG ---
+        st.markdown("---")
+        st.subheader("📦 Host Global Item & Discovery Audit Log")
+        st.markdown("A complete record of all items, shields, and prizes found or received by players across the castle:")
+        item_audit_log = state.setdefault("host_item_audit", [])
+        if item_audit_log:
+            st.dataframe(pd.DataFrame(item_audit_log), use_container_width=True, hide_index=True)
+        else:
+            st.info("No items have been found or received yet.")
+
+        # --- NEW: HOST VAULT INSPECTOR & MANUAL CONTROLLER ---
+        synth_vault_key = f"Day {state['current_day']}"
+        st.markdown("---")
+        st.subheader(f"🏦 Host Vault Inspector & Control ({synth_vault_key})")
+        st.markdown("Inspect all safety deposit boxes, see who opened them, or manually override their positions and contents!")
+        
+        current_vault_data = state["vault_contents"].setdefault(synth_vault_key, {})
+        if current_vault_data:
+            vault_rows = []
+            for b_num, b_dat in sorted(current_vault_data.items(), key=lambda x: int(x[0])):
+                vault_rows.append({
+                    "Box #": b_num,
+                    "Type": b_dat.get("type"),
+                    "Description": b_dat.get("desc"),
+                    "Opened?": b_dat.get("opened"),
+                    "Opened By": b_dat.get("opened_by", "—")
+                })
+            st.dataframe(pd.DataFrame(vault_rows), use_container_width=True, hide_index=True)
+            
+            if st.button("🎲 Randomize All Vault Boxes"):
+                alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
+                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, alive_c * 3, state["vault_config"])
+                save_state(state)
+                st.success("🎲 Vault boxes successfully randomized!")
+                st.rerun()
+        else:
+            st.info("Vault boxes not yet initialized for today. Players will generate them when opening the portal.")
+
+        # --- NEW: HOST RELIC & RIDDLE EDITOR ---
+        st.markdown("---")
+        st.subheader("💍 Host Relic Chamber & Riddle Editor")
+        st.markdown("Rewrite riddles, clues, and replace items for the Chamber of Relics boxes:")
+        relics_config_dict = state["relics_config"].setdefault("riddles", {})
+        
+        selected_relic_box = st.selectbox("Select Relic Box to Edit:", list(relics_config_dict.keys()), key="edit_relic_box_sel")
+        r_info = relics_config_dict[selected_relic_box]
+        
+        with st.form("edit_relic_form"):
+            new_r_name = st.text_input("Relic Name / Item:", value=r_info["name"])
+            new_r_clue = st.text_area("Riddle / Clue:", value=r_info["clue"])
+            new_r_ans = st.text_input("Correct Keywords (comma separated):", value=r_info["answer"])
+            if st.form_submit_button("💾 Save Relic Box Changes"):
+                relics_config_dict[selected_relic_box] = {
+                    "name": new_r_name.strip(),
+                    "clue": new_r_clue.strip(),
+                    "answer": new_r_ans.strip().lower()
+                }
+                save_state(state)
+                st.success(f"✅ Successfully updated **{selected_relic_box}**!")
+                st.rerun()
+
         st.markdown("---")
         st.subheader("👁️ Castle Login Audit Log (Active & Past 24 Hours)")
         if "logged_in_player" in st.session_state:
@@ -1181,3 +1303,5 @@ elif nav == "👑 Host Control (Neilio)":
                     save_state(restored_state)
                     st.success("✅ Vault successfully restored from uploaded file!")
                     st.rerun()
+
+<FollowUp/>
