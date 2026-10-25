@@ -395,7 +395,6 @@ def load_state():
         p.setdefault("points", 0)
         p.setdefault("claimed_items", [])
         
-    # AUTO-INITIALIZE TODAY'S ARMOURY BOXES IF MISSING
     synth_v_key = f"Day {state.get('current_day', 1)}"
     if synth_v_key not in state.setdefault("vault_contents", {}):
         alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
@@ -1006,7 +1005,7 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
-        # --- NEW: HOST AUDIO SOUNDBOARD WITH UPLOAD & STOP/PAUSE ---
+        # --- HOST AUDIO SOUNDBOARD WITH UPLOAD & STOP/PAUSE ---
         st.markdown("---")
         st.subheader("🎶 Host Dramatic Soundboard & Audio Library")
         st.markdown("Play, pause, stop, or upload dramatic theme music for tension during the Round Table or banishments!")
