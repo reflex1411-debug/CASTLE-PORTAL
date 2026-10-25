@@ -1322,5 +1322,3 @@ elif nav == "👑 Host Control (Neilio)":
                     save_state(restored_state)
                     st.success("✅ Vault successfully restored from uploaded file!")
                     st.rerun()
-
-<FollowUp/>
