@@ -342,7 +342,7 @@ def get_default_state():
         "relics_config": {
             "riddles": {
                 "Box 1": {"name": "💍 Ring of Truth", "clue": "It has no beginning, it has no end, yet it forces a foe to speak like a friend. Look where the mirror reflects not your face, but the pure unvarnished truth of the place.", "answer": "truth, mirror"},
-                "Box 2": {"name": "📜 Amulet of Echoes", "clue": "Wear me close and bare your chest, for yesterday's secrets will not take a rest. What whispers were spoken in corners of old, through silver and glass shall soon be retold.", "answer": "echo, echo echoes"},
+                "Box 2": {"name": "📜 Amulet of Cleansing Fire", "clue": "I burn with no ember, I smoke with no ash, yet I shatter the venom in one sudden flash. Where the shadows of curses cling thick to the door, I cleanse every trap that was laid on the floor. Name what devours the darkness and frees up the stone, and the power of purification is yours alone.", "answer": "fire, flame, cleansing fire, purge, burn, light"},
                 "Box 3": {"name": "👑 Crown of Thorns", "clue": "Sharp to the touch and heavy to bear, I ward off the blade and chase off the snare. Sleep soundly tonight when the shadows creep near, for the fangs of the turret will find nothing here.", "answer": "thorn, thorns, crown"},
                 "Box 4": {"name": "⏳ Hourglass Pendant", "clue": "I measure no sand, yet I alter the clock; I turn back the key in a time-frozen lock. When the votes are all cast and the whispers are done, I grant you a second chance under the sun.", "answer": "hourglass, sand, time"},
                 "Box 5": {"name": "📌 Cloakpin of Silence", "clue": "I hold back the cloth, but I muzzle the tongue; I quiet the songs that the ravens have sung. Fasten me tightly and look to the floor—one voice in this room shall be heard nevermore.", "answer": "silence, pin, cloakpin"},
@@ -494,7 +494,13 @@ def initialize_relics_boxes():
     boxes = {}
     riddles_dict = state["relics_config"].get("riddles", {})
     for b_key, r_info in riddles_dict.items():
-        boxes[b_key] = {"name": r_info["name"], "clue": r_info["clue"], "opened": False, "opened_by": ""}
+        existing = state.get("relics_vault_contents", {}).get(b_key, {})
+        boxes[b_key] = {
+            "name": r_info["name"],
+            "clue": r_info["clue"],
+            "opened": existing.get("opened", False),
+            "opened_by": existing.get("opened_by", "")
+        }
     return boxes
 
 def render_player_portal_view(selected_player):
@@ -1110,14 +1116,17 @@ elif nav == "👑 Host Control (Neilio)":
             new_r_name = st.text_input("Relic Name / Item:", value=r_info["name"])
             new_r_clue = st.text_area("Riddle / Clue:", value=r_info["clue"])
             new_r_ans = st.text_input("Correct Keywords (comma separated):", value=r_info["answer"])
-            if st.form_submit_button("💾 Save Relic Box Changes"):
+            if st.form_submit_button("💾 Save & Sync Relic Box Changes"):
                 relics_config_dict[selected_relic_box] = {
                     "name": new_r_name.strip(),
                     "clue": new_r_clue.strip(),
                     "answer": new_r_ans.strip().lower()
                 }
+                if selected_relic_box in state["relics_vault_contents"]:
+                    state["relics_vault_contents"][selected_relic_box]["name"] = new_r_name.strip()
+                    state["relics_vault_contents"][selected_relic_box]["clue"] = new_r_clue.strip()
                 save_state(state)
-                st.success(f"✅ Successfully updated **{selected_relic_box}**!")
+                st.success(f"✅ Successfully updated and synced **{selected_relic_box}**!")
                 st.rerun()
 
         st.markdown("---")
