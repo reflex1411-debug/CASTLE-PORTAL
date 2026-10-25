@@ -361,7 +361,8 @@ def get_default_state():
         "non_voters": {},
         "public_execution": {},
         "login_history": [],
-        "host_item_audit": []
+        "host_item_audit": [],
+        "custom_songs": {"traitors_theme.mp3": "traitors_theme.mp3"}
     }
 
 def load_state():
@@ -376,8 +377,8 @@ def load_state():
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
-                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history", "host_item_audit"]:
-        state.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {})))
+                "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history", "host_item_audit", "custom_songs"]:
+        state.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if key == "custom_songs" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {}))))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -998,9 +999,38 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        # --- NEW: HOST AUDIO SOUNDBOARD WITH UPLOAD & STOP/PAUSE ---
+        st.markdown("---")
+        st.subheader("🎶 Host Dramatic Soundboard & Audio Library")
+        st.markdown("Play, pause, stop, or upload dramatic theme music for tension during the Round Table or banishments!")
+        
+        song_uploader = st.file_uploader("Upload New MP3 Song", type=["mp3"])
+        if song_uploader is not None:
+            song_name = song_uploader.name
+            with open(song_name, "wb") as f:
+                f.write(song_uploader.getbuffer())
+            state.setdefault("custom_songs", {})[song_name] = song_name
+            save_state(state)
+            st.success(f"✅ Successfully uploaded and added **{song_name}** to the audio library!")
+            st.rerun()
+
+        custom_songs = state.setdefault("custom_songs", {"traitors_theme.mp3": "traitors_theme.mp3"})
+        existing_songs = [s for s in custom_songs.keys() if os.path.exists(s)]
+        
+        if existing_songs:
+            selected_song = st.selectbox("Select Audio Track:", existing_songs)
+            col_play, col_stop = st.columns(2)
+            if col_play.button("🎵 Play Track 🎶"):
+                st.audio(selected_song, format="audio/mp3", autoplay=True)
+                st.success(f"🎶 Playing **{selected_song}** across the castle!")
+            if col_stop.button("⏹️ Stop / Silence Music"):
+                st.audio("", format="audio/mp3")
+                st.info("⏹️ Music stopped.")
+        else:
+            st.warning("⚠️ No MP3 audio files found in the directory. Please upload one above or add `traitors_theme.mp3`.")
+
         st.markdown("---")
         st.subheader("📦 Host Global Item & Discovery Audit Log")
-        st.markdown("A complete record of all items, shields, and prizes found or received by players across the castle:")
         item_audit_log = state.setdefault("host_item_audit", [])
         if item_audit_log:
             st.dataframe(pd.DataFrame(item_audit_log), use_container_width=True, hide_index=True)
@@ -1009,36 +1039,37 @@ elif nav == "👑 Host Control (Neilio)":
 
         synth_vault_key = f"Day {state['current_day']}"
         st.markdown("---")
-        st.subheader(f"🏦 Host Vault Inspector & Control ({synth_vault_key})")
-        st.markdown("Inspect all safety deposit boxes, see who opened them, or manually override their positions and contents!")
+        st.subheader(f"🏦 Host Armoury Box Grid & Control ({synth_vault_key})")
+        st.markdown("A complete visual grid of all safety deposit boxes, their current contents, and whether they have been opened!")
         
         current_vault_data = state["vault_contents"].setdefault(synth_vault_key, {})
         if current_vault_data:
             vault_rows = []
             for b_num, b_dat in sorted(current_vault_data.items(), key=lambda x: int(x[0])):
                 vault_rows.append({
-                    "Box #": b_num,
-                    "Type": b_dat.get("type"),
+                    "Box #": int(b_num),
+                    "Item / Prize Type": b_dat.get("type"),
                     "Description": b_dat.get("desc"),
-                    "Opened?": b_dat.get("opened"),
+                    "Opened Status": "Opened 🔒" if b_dat.get("opened") else "Closed 📦",
                     "Opened By": b_dat.get("opened_by", "—")
                 })
-            st.dataframe(pd.DataFrame(vault_rows), use_container_width=True, hide_index=True)
             
-            if st.button("🎲 Randomize All Vault Boxes"):
+            # Displayed as a clean grid table
+            df_vault = pd.DataFrame(vault_rows).sort_values("Box #")
+            st.dataframe(df_vault, use_container_width=True, hide_index=True)
+            
+            if st.button("🎲 Randomize All Armoury Boxes"):
                 alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
                 state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, alive_c * 3, state["vault_config"])
                 save_state(state)
-                st.success("🎲 Vault boxes successfully randomized!")
+                st.success("🎲 Armoury boxes successfully randomized!")
                 st.rerun()
         else:
-            st.info("Vault boxes not yet initialized for today. Players will generate them when opening the portal.")
+            st.info("Armoury boxes not yet initialized for today.")
 
         st.markdown("---")
         st.subheader("💍 Host Relic Chamber & Riddle Editor")
-        st.markdown("Rewrite riddles, clues, and replace items for the Chamber of Relics boxes:")
         relics_config_dict = state["relics_config"].setdefault("riddles", {})
-        
         selected_relic_box = st.selectbox("Select Relic Box to Edit:", list(relics_config_dict.keys()), key="edit_relic_box_sel")
         r_info = relics_config_dict[selected_relic_box]
         
@@ -1081,16 +1112,6 @@ elif nav == "👑 Host Control (Neilio)":
             st.dataframe(log_df, use_container_width=True, hide_index=True)
         else:
             st.caption("No player logins recorded in the last 24 hours.")
-
-        st.markdown("---")
-        st.subheader("🎶 Host Dramatic Soundboard")
-        audio_file_path = "traitors_theme.mp3"
-        if os.path.exists(audio_file_path):
-            if st.button("🎵 Play Dramatic Theme Music 🎶"):
-                st.audio(audio_file_path, format="audio/mp3", autoplay=True)
-                st.success("🎶 Suspense track triggered across the castle!")
-        else:
-            st.warning("⚠️ `traitors_theme.mp3` file not found in repository directory.")
 
         st.markdown("---")
         st.subheader("🏰 Castle Gates Access Control")
