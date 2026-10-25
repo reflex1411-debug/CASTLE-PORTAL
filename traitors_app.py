@@ -459,7 +459,6 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     
     day_curse_data = state.get("custom_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
     
-    # Always shuffle/randomise the box numbers when this function is called
     random.shuffle(box_numbers)
     
     shields_to_assign = min(config.get("shields_count", 2), total_boxes)
@@ -468,7 +467,6 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])] if curses_enabled else []
     host_curse_items = day_curse_data.get("items", [])
     
-    # Filter items based on whether Traitors' Bane is enabled
     traitors_bane_enabled = day_curse_data.get("traitors_bane_enabled", True)
     filtered_curse_items = []
     for item in host_curse_items:
@@ -1028,6 +1026,60 @@ elif nav == "👑 Host Control (Neilio)":
     if st.text_input("Enter Host Master PIN", type="password") == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        # --- HOST ITEM TRANSFER / REALLOCATION DESK ---
+        st.markdown("---")
+        st.subheader("🔄 Host Item & Relic Transfer Desk")
+        st.markdown("Transfer an item or relic from one player's inventory to another player.")
+        
+        with st.form("host_item_transfer_form"):
+            col_t1, col_t2, col_t3 = st.columns(3)
+            from_player = col_t1.selectbox("From Player:", list(state["players"].keys()), key="transfer_from_sel")
+            
+            # Get items claimed by source player
+            source_claimed = state["players"][from_player].get("claimed_items", [])
+            source_item_descs = [item["desc"] for item in source_claimed] if source_claimed else ["No items in inventory"]
+            
+            item_to_transfer = col_t2.selectbox("Select Item to Transfer:", source_item_descs, key="transfer_item_sel")
+            to_player = col_t3.selectbox("To Player:", list(state["players"].keys()), key="transfer_to_sel")
+            
+            if st.form_submit_button("🔄 Transfer Item Between Players"):
+                if not source_claimed or item_to_transfer == "No items in inventory":
+                    st.error("Source player has no items to transfer!")
+                elif from_player == to_player:
+                    st.error("Cannot transfer an item to the same player!")
+                else:
+                    # Find and pop item from source
+                    transferred_item = None
+                    for idx, item in enumerate(source_claimed):
+                        if item["desc"] == item_to_transfer:
+                            transferred_item = source_claimed.pop(idx)
+                            break
+                    
+                    if transferred_item:
+                        # Add to destination player
+                        state["players"][to_player].setdefault("claimed_items", []).append(transferred_item)
+                        
+                        # Handle special status transfers (like shields)
+                        if "Shield" in transferred_item["desc"]:
+                            if "Secret" in transferred_item["desc"] or "Armor" in transferred_item["desc"]:
+                                state["players"][from_player]["shield"] = False
+                                state["players"][to_player]["shield"] = True
+                            elif "Public" in transferred_item["desc"]:
+                                state["players"][from_player]["public_shield"] = False
+                                state["players"][to_player]["public_shield"] = True
+                        
+                        state.setdefault("host_item_audit", []).append({
+                            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "player": f"{from_player} ➔ {to_player}",
+                            "source": "Host Transfer Desk",
+                            "item": transferred_item["desc"]
+                        })
+                        save_state(state)
+                        st.success(f"✅ Successfully transferred **{item_to_transfer}** from **{from_player}** to **{to_player}**!")
+                        st.rerun()
+                    else:
+                        st.error("Item could not be located in source inventory.")
+
         # --- HOST RELIC & SPECIAL ITEM ALLOCATOR ---
         st.markdown("---")
         st.subheader("🛡️ Host Relic & Special Item Allocator")
