@@ -923,8 +923,13 @@ elif nav == "💀 Public Execution Room":
         st.divider()
         st.subheader("⚖️ Cast Your Execution Vote")
         
+        # --- FIXED EXECUTION VOTER SELECTION (PLAYER VOTES AS THEMSELVES) ---
         alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-        exec_voter = st.session_state.get("logged_in_player", alive_players[0] if alive_players else "")
+        default_voter_idx = 0
+        if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in alive_players:
+            default_voter_idx = alive_players.index(st.session_state["logged_in_player"])
+
+        exec_voter = st.selectbox("Select Your Name (Voter):", alive_players, index=default_voter_idx, key="exec_voter_select")
         st.info(f"Voting as: **{exec_voter}**")
 
         pub_exec_votes = state["public_execution"].setdefault(day_key, {})
@@ -935,7 +940,7 @@ elif nav == "💀 Public Execution Room":
             if exec_submit:
                 pub_exec_votes[exec_voter] = exec_target
                 save_state(state)
-                st.success(f"✅ Your vote to throw **{exec_target}** to the ghost has been recorded!")
+                st.success(f"✅ Your vote ({exec_voter}) to throw **{exec_target}** to the ghost has been recorded!")
 
         st.markdown("---")
         st.subheader("📊 Live Execution Tally Board")
@@ -1238,6 +1243,24 @@ elif nav == "👑 Host Control (Neilio)":
                 state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
                 save_state(state)
                 st.success("🎲 Armoury boxes successfully randomised!")
+                st.rerun()
+
+        # --- HOST ARMOURY RIDDLE EDITOR (NEW!) ---
+        st.markdown("---")
+        st.subheader("🧩 Host Armoury Daily Riddle Editor")
+        riddle_day_sel = st.selectbox("Select Day to Edit Armoury Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="riddle_day_select")
+        current_day_riddle = state.setdefault("vault_riddles", {}).setdefault(riddle_day_sel, {"question": "Enter riddle.", "answer": "wish"})
+
+        with st.form("host_edit_riddle_form"):
+            new_riddle_q = st.text_area("Armoury Riddle Question:", value=current_day_riddle.get("question", ""))
+            new_riddle_a = st.text_input("Correct Answer Keyword(s) (comma-separated):", value=current_day_riddle.get("answer", ""))
+            if st.form_submit_button(f"💾 Save Riddle for {riddle_day_sel}"):
+                state["vault_riddles"][riddle_day_sel] = {
+                    "question": new_riddle_q.strip(),
+                    "answer": new_riddle_a.strip().lower()
+                }
+                save_state(state)
+                st.success(f"✅ Successfully updated Armoury Gatekeeper Riddle for **{riddle_day_sel}**!")
                 st.rerun()
 
         st.markdown("---")
