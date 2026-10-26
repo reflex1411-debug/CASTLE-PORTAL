@@ -616,7 +616,16 @@ def render_player_portal_view(selected_player):
         if status not in ["Alive", "Undead"]:
             st.warning("👻 Ghosts cannot cast votes!")
         elif not state.get("voting_active", True):
-            st.warning("🔒 **Voting is currently paused or closed by Host Neilio.**")
+            st.warning("🔒 **Voting is currently closed. Reviewing final votes below:**")
+            
+            # --- SECRET VOTE REVEAL PANEL ---
+            vote_key = day_key
+            cast_votes = state["votes"].get(vote_key, {})
+            if cast_votes:
+                for voter, vdata in cast_votes.items():
+                    st.markdown(f"• **{voter}** voted to banish **{vdata['target']}** — *\"{vdata['reason']}\"*")
+            else:
+                st.info("No votes were cast for this Round Table.")
         else:
             tie_data = state["round_table_tie_breaker"].get(day_key, {})
             is_tie_breaker = tie_data.get("active", False)
@@ -642,7 +651,7 @@ def render_player_portal_view(selected_player):
 
                             state["votes"].setdefault(vote_key, {})[voter_key] = {"target": target, "reason": reason.strip(), "timestamp": datetime.now().strftime("%H:%M")}
                             save_state(state)
-                            st.success(f"✅ Vote against **{target}** recorded.")
+                            st.success(f"✅ Your secret vote against **{target}** is locked in and sealed until voting ends.")
     else:
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.**")
@@ -848,17 +857,13 @@ if nav == "🏰 Castle Hall (Public)":
 elif nav == "💬 Round Table Live Chat":
     st.title("💬 Round Table Live Chat")
     
-    chat_options = ["👑 High Host Neilio"] + list(state["players"].keys())
-    default_chat_idx = 0
+    # --- SECURE CHAT IDENTITY (NO SPOOFING) ---
     if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
-        default_chat_idx = chat_options.index(st.session_state["logged_in_player"])
-
-    chat_author = st.selectbox("Chatting As:", chat_options, index=default_chat_idx, key="castle_chat_identity")
-    
-    if chat_author == "👑 High Host Neilio":
-        st.success("👑 Chatting as **High Host Neilio** (The Host)")
-    else:
+        chat_author = st.session_state["logged_in_player"]
         st.success(f"💬 Chatting as: **{chat_author}**")
+    else:
+        chat_author = "👑 High Host Neilio"
+        st.info("👑 Chatting as **High Host Neilio** (The Host). *Note: Players must log into their Player Portal to chat as themselves.*")
 
     timers = state["round_table_timers"].setdefault(day_key, {"voting_opens": "18:00", "voting_closes": "21:00"})
     t1, t2 = st.columns(2)
