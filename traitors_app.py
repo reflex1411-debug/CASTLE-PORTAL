@@ -623,7 +623,8 @@ def render_player_portal_view(selected_player):
             cast_votes = state["votes"].get(vote_key, {})
             if cast_votes:
                 for voter, vdata in cast_votes.items():
-                    st.markdown(f"• **{voter}** voted to banish **{vdata['target']}** — *\"{vdata['reason']}\"*")
+                    clean_voter = voter.replace("🔒 [ANONYMOUS SHADOW — ", "").replace("]", "")
+                    st.markdown(f"• **{clean_voter}** voted to banish **{vdata['target']}** — *\"{vdata['reason']}\"*")
             else:
                 st.info("No votes were cast for this Round Table.")
         else:
@@ -636,22 +637,38 @@ def render_player_portal_view(selected_player):
             else:
                 alive_targets = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"] and n != selected_player]
                 vote_key = f"{day_key}_tie" if is_tie_breaker else day_key
-                existing_vote = state["votes"].get(vote_key, {}).get(selected_player, {})
                 
-                with st.form(f"vote_form_{selected_player}_{vote_key}"):
-                    target = st.selectbox("Who are you voting to BANISH?", alive_targets, index=alive_targets.index(existing_vote["target"]) if existing_vote.get("target") in alive_targets else 0)
-                    reason = st.text_input("1-Sentence Accusation:", value=existing_vote.get("reason", ""))
-                    if st.form_submit_button("Lock In Vote 🕯️"):
-                        if not reason.strip(): st.error("Please provide a short reason!")
-                        else:
-                            # --- AUTOMATED MIRROR OF VANITY CHECK ---
-                            voter_key = selected_player
-                            if player_has_relic(selected_player, "Mirror of Vanity"):
-                                voter_key = f"🔒 [ANONYMOUS SHADOW — {selected_player}]"
+                # Check if player already voted (permanent lock)
+                existing_vote = None
+                for v_key, v_data in state["votes"].get(vote_key, {}).items():
+                    if selected_player in v_key:
+                        existing_vote = v_data
+                        break
 
-                            state["votes"].setdefault(vote_key, {})[voter_key] = {"target": target, "reason": reason.strip(), "timestamp": datetime.now().strftime("%H:%M")}
-                            save_state(state)
-                            st.success(f"✅ Your secret vote against **{target}** is locked in and sealed until voting ends.")
+                if existing_vote and "target" in existing_vote:
+                    st.success(f"🔒 **Your vote has been cast and sealed!** You voted to banish **{existing_vote['target']}**.")
+                    st.markdown(f"> *\"{existing_vote['reason']}\"*")
+                    st.info("Your vote is permanently locked in and cannot be changed.")
+                else:
+                    with st.form(f"vote_form_{selected_player}_{vote_key}"):
+                        target = st.selectbox("Who are you voting to BANISH?", alive_targets)
+                        reason = st.text_input("1-Sentence Accusation:")
+                        if st.form_submit_button("Lock In Vote & Seal Forever 🕯️"):
+                            if not reason.strip(): 
+                                st.error("Please provide a short reason!")
+                            else:
+                                voter_key = selected_player
+                                if player_has_relic(selected_player, "Mirror of Vanity"):
+                                    voter_key = f"🔒 [ANONYMOUS SHADOW — {selected_player}]"
+
+                                state["votes"].setdefault(vote_key, {})[voter_key] = {
+                                    "target": target, 
+                                    "reason": reason.strip(), 
+                                    "timestamp": datetime.now().strftime("%H:%M")
+                                }
+                                save_state(state)
+                                st.success(f"✅ Your secret vote against **{target}** is permanently locked in!")
+                                st.rerun()
     else:
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.**")
