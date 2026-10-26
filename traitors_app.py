@@ -923,7 +923,6 @@ elif nav == "💀 Public Execution Room":
         st.divider()
         st.subheader("⚖️ Cast Your Execution Vote")
         
-        # --- FIXED EXECUTION VOTER SELECTION (PLAYER VOTES AS THEMSELVES) ---
         alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
         default_voter_idx = 0
         if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in alive_players:
@@ -1245,7 +1244,7 @@ elif nav == "👑 Host Control (Neilio)":
                 st.success("🎲 Armoury boxes successfully randomised!")
                 st.rerun()
 
-        # --- HOST ARMOURY RIDDLE EDITOR (NEW!) ---
+        # --- HOST ARMOURY RIDDLE EDITOR ---
         st.markdown("---")
         st.subheader("🧩 Host Armoury Daily Riddle Editor")
         riddle_day_sel = st.selectbox("Select Day to Edit Armoury Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="riddle_day_select")
@@ -1365,10 +1364,13 @@ elif nav == "👑 Host Control (Neilio)":
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         current_non_voters = state["non_voters"].setdefault(day_key, [])
         
+        # Safe filtering to ensure defaults match existing alive names
+        valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
+
         selected_non_voters = st.multiselect(
             f"Select players who did NOT vote for {day_key}:",
             options=alive_names,
-            default=current_non_voters
+            default=valid_default_non_voters
         )
         if st.button("💾 Save Non-Voters List"):
             state["non_voters"][day_key] = selected_non_voters
