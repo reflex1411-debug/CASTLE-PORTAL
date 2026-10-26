@@ -321,7 +321,7 @@ def get_default_state():
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
         "voting_active": True,
-        "chat_locked": False, # Host control to lock/unlock round table chat
+        "chat_locked": False,
         "castle_gates_open": True,
         "headline": "Welcome to Neilio's Castle! The Round Table voting is now live.",
         "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nCast your vote before voting is closed by the Host!",
@@ -1424,6 +1424,25 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.info("Voting ended.")
             st.rerun()
+
+        # --- LIVE HOST VOTING TALLY BOARD (NEW) ---
+        st.markdown("---")
+        st.subheader(f"📊 Live Host Voting Tally ({day_key})")
+        host_votes = state["votes"].get(day_key, {})
+        if host_votes:
+            host_tally = {}
+            for voter_raw, vdata in host_votes.items():
+                clean_voter = voter_raw.replace("🔒 [ANONYMOUS SHADOW — ", "").replace("]", "")
+                target = vdata["target"]
+                host_tally[target] = host_tally.get(target, 0) + 1
+                st.markdown(f"• 🕯️ **{clean_voter}** voted for **{target}** (*\"{vdata['reason']}\"*)")
+            
+            st.markdown("---")
+            st.markdown("**Current Vote Counts:**")
+            for t_name, t_count in sorted(host_tally.items(), key=lambda x: x[1], reverse=True):
+                st.markdown(f"• **{t_name}**: `{t_count} vote(s)`")
+        else:
+            st.info("No votes have been locked in by players yet for today.")
 
         # --- HOST CHAT LOCK TOGGLE ---
         st.markdown("---")
