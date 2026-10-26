@@ -375,7 +375,7 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     boxes = {}
     box_numbers = list(range(1, total_boxes + 1))
     
-    day_curse_data = st.session_state.get("temp_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
+    day_curse_data = st.session_state.get("temp_curses", {}).get(day_k, state.get("custom_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []}))
     
     random.shuffle(box_numbers)
     
@@ -386,30 +386,42 @@ def initialize_vault_boxes(day_k, total_boxes, config):
     host_curse_items = day_curse_data.get("items", [])
     
     traitors_bane_enabled = day_curse_data.get("traitors_bane_enabled", True)
-    filtered_curse_items = []
-    for item in host_curse_items:
-        if not traitors_bane_enabled and item.get("toxicity") == "Traitor-Lethal":
-            continue
-        filtered_curse_items.append(item)
     
     relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
     if not relics_pool: relics_pool = ["Rusted Iron Key", "Dusty Tome of Spells", "Broken Dagger"]
 
     curse_item_idx = 0
+    bane_assigned = False
+
     for i in range(total_boxes):
         b_num = str(box_numbers[i])
         if i < shields_to_assign:
             boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
-        elif curses_enabled and b_num in host_cursed_box_nums and filtered_curse_items:
-            c_item = filtered_curse_items[curse_item_idx % len(filtered_curse_items)]
-            curse_item_idx += 1
-            boxes[b_num] = {
-                "type": "Curse", 
-                "toxicity": c_item.get("toxicity", "Moderately Toxic"),
-                "target_role": c_item.get("target", "All"),
-                "desc": f"💀 **{c_item.get('name', 'Cursed Trap')}** ({c_item.get('toxicity', 'Toxic')}): {c_item.get('desc', 'A dark curse strikes!')}", 
-                "opened": False, "opened_by": ""
-            }
+        elif curses_enabled and b_num in host_cursed_box_nums:
+            if traitors_bane_enabled and not bane_assigned and (curse_item_idx == 0 or random.random() > 0.5):
+                boxes[b_num] = {
+                    "type": "Curse", 
+                    "toxicity": "Traitor-Lethal",
+                    "target_role": "Traitor",
+                    "desc": "🗡️ **Traitors' Bane**: TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!", 
+                    "opened": False, "opened_by": ""
+                }
+                bane_assigned = True
+            elif host_curse_items:
+                c_item = host_curse_items[curse_item_idx % len(host_curse_items)]
+                curse_item_idx += 1
+                if not traitors_bane_enabled and c_item.get("toxicity") == "Traitor-Lethal":
+                    c_item = {"name": "Moth-Eaten Spores", "toxicity": "Less Toxic", "target": "All", "desc": "📜 Minor irritation: Lose 25 points from group pot."}
+                
+                boxes[b_num] = {
+                    "type": "Curse", 
+                    "toxicity": c_item.get("toxicity", "Moderately Toxic"),
+                    "target_role": c_item.get("target", "All"),
+                    "desc": f"💀 **{c_item.get('name', 'Cursed Trap')}** ({c_item.get('toxicity', 'Toxic')}): {c_item.get('desc', 'A dark curse strikes!')}", 
+                    "opened": False, "opened_by": ""
+                }
+            else:
+                boxes[b_num] = {"type": "Points", "value": 25, "desc": "✨ 25 Group Prize Points added!", "opened": False, "opened_by": ""}
         else:
             if i % 2 == 0:
                 pts = config.get("prize_points_value", 25)
@@ -418,6 +430,16 @@ def initialize_vault_boxes(day_k, total_boxes, config):
                 relic = random.choice(relics_pool)
                 boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic} (No effect)", "opened": False, "opened_by": ""}
             
+    if curses_enabled and traitors_bane_enabled and not bane_assigned and boxes:
+        first_box = list(boxes.keys())[0]
+        boxes[first_box] = {
+            "type": "Curse", 
+            "toxicity": "Traitor-Lethal",
+            "target_role": "Traitor",
+            "desc": "🗡️ **Traitors' Bane**: TRAP FOR TRAITORS! If opened by a Traitor, they are instantly eliminated from the Castle!", 
+            "opened": False, "opened_by": ""
+        }
+
     return boxes
 
 def initialize_relics_boxes():
