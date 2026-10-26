@@ -367,6 +367,71 @@ def get_default_state():
         "custom_songs": {"traitors_theme.mp3": "traitors_theme.mp3"}
     }
 
+# ==========================================
+# RELIC AUTOMATION & BOX INITIALIZATION
+# ==========================================
+def initialize_vault_boxes(day_k, total_boxes, config):
+    boxes = {}
+    box_numbers = list(range(1, total_boxes + 1))
+    
+    day_curse_data = st.session_state.get("temp_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
+    
+    random.shuffle(box_numbers)
+    
+    shields_to_assign = min(config.get("shields_count", 2), total_boxes)
+    
+    curses_enabled = day_curse_data.get("enabled", True)
+    host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])] if curses_enabled else []
+    host_curse_items = day_curse_data.get("items", [])
+    
+    traitors_bane_enabled = day_curse_data.get("traitors_bane_enabled", True)
+    filtered_curse_items = []
+    for item in host_curse_items:
+        if not traitors_bane_enabled and item.get("toxicity") == "Traitor-Lethal":
+            continue
+        filtered_curse_items.append(item)
+    
+    relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
+    if not relics_pool: relics_pool = ["Rusted Iron Key", "Dusty Tome of Spells", "Broken Dagger"]
+
+    curse_item_idx = 0
+    for i in range(total_boxes):
+        b_num = str(box_numbers[i])
+        if i < shields_to_assign:
+            boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
+        elif curses_enabled and b_num in host_cursed_box_nums and filtered_curse_items:
+            c_item = filtered_curse_items[curse_item_idx % len(filtered_curse_items)]
+            curse_item_idx += 1
+            boxes[b_num] = {
+                "type": "Curse", 
+                "toxicity": c_item.get("toxicity", "Moderately Toxic"),
+                "target_role": c_item.get("target", "All"),
+                "desc": f"💀 **{c_item.get('name', 'Cursed Trap')}** ({c_item.get('toxicity', 'Toxic')}): {c_item.get('desc', 'A dark curse strikes!')}", 
+                "opened": False, "opened_by": ""
+            }
+        else:
+            if i % 2 == 0:
+                pts = config.get("prize_points_value", 25)
+                boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Group Prize Points added!", "opened": False, "opened_by": ""}
+            else:
+                relic = random.choice(relics_pool)
+                boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic} (No effect)", "opened": False, "opened_by": ""}
+            
+    return boxes
+
+def initialize_relics_boxes():
+    boxes = {}
+    riddles_dict = state["relics_config"].get("riddles", {})
+    for b_key, r_info in riddles_dict.items():
+        existing = state.get("relics_vault_contents", {}).get(b_key, {})
+        boxes[b_key] = {
+            "name": r_info["name"],
+            "clue": r_info["clue"],
+            "opened": existing.get("opened", False),
+            "opened_by": existing.get("opened_by", "")
+        }
+    return boxes
+
 def load_state():
     if not os.path.exists(DATA_FILE):
         state = get_default_state()
@@ -475,68 +540,6 @@ def compute_superlatives(state):
         default=("None", 0)
     )
     return best_detective, scapegoat, stealth_traitor
-
-def initialize_vault_boxes(day_k, total_boxes, config):
-    boxes = {}
-    box_numbers = list(range(1, total_boxes + 1))
-    
-    day_curse_data = state.get("custom_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []})
-    
-    random.shuffle(box_numbers)
-    
-    shields_to_assign = min(config.get("shields_count", 2), total_boxes)
-    
-    curses_enabled = day_curse_data.get("enabled", True)
-    host_cursed_box_nums = [str(b) for b in day_curse_data.get("boxes", [])] if curses_enabled else []
-    host_curse_items = day_curse_data.get("items", [])
-    
-    traitors_bane_enabled = day_curse_data.get("traitors_bane_enabled", True)
-    filtered_curse_items = []
-    for item in host_curse_items:
-        if not traitors_bane_enabled and item.get("toxicity") == "Traitor-Lethal":
-            continue
-        filtered_curse_items.append(item)
-    
-    relics_pool = [r.strip() for r in config.get("relics_list", "").split(",") if r.strip()]
-    if not relics_pool: relics_pool = ["Rusted Iron Key", "Dusty Tome of Spells", "Broken Dagger"]
-
-    curse_item_idx = 0
-    for i in range(total_boxes):
-        b_num = str(box_numbers[i])
-        if i < shields_to_assign:
-            boxes[b_num] = {"type": "Shield", "desc": "🛡️ A Royal Castle Shield!", "opened": False, "opened_by": ""}
-        elif curses_enabled and b_num in host_cursed_box_nums and filtered_curse_items:
-            c_item = filtered_curse_items[curse_item_idx % len(filtered_curse_items)]
-            curse_item_idx += 1
-            boxes[b_num] = {
-                "type": "Curse", 
-                "toxicity": c_item.get("toxicity", "Moderately Toxic"),
-                "target_role": c_item.get("target", "All"),
-                "desc": f"💀 **{c_item.get('name', 'Cursed Trap')}** ({c_item.get('toxicity', 'Toxic')}): {c_item.get('desc', 'A dark curse strikes!')}", 
-                "opened": False, "opened_by": ""
-            }
-        else:
-            if i % 2 == 0:
-                pts = config.get("prize_points_value", 25)
-                boxes[b_num] = {"type": "Points", "value": pts, "desc": f"✨ {pts} Group Prize Points added!", "opened": False, "opened_by": ""}
-            else:
-                relic = random.choice(relics_pool)
-                boxes[b_num] = {"type": "Relic", "desc": f"📜 A Castle Relic: {relic} (No effect)", "opened": False, "opened_by": ""}
-            
-    return boxes
-
-def initialize_relics_boxes():
-    boxes = {}
-    riddles_dict = state["relics_config"].get("riddles", {})
-    for b_key, r_info in riddles_dict.items():
-        existing = state.get("relics_vault_contents", {}).get(b_key, {})
-        boxes[b_key] = {
-            "name": r_info["name"],
-            "clue": r_info["clue"],
-            "opened": existing.get("opened", False),
-            "opened_by": existing.get("opened_by", "")
-        }
-    return boxes
 
 def render_player_portal_view(selected_player):
     p_info = state["players"][selected_player]
