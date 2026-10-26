@@ -1364,7 +1364,6 @@ elif nav == "👑 Host Control (Neilio)":
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         current_non_voters = state["non_voters"].setdefault(day_key, [])
         
-        # Safe filtering to ensure defaults match existing alive names
         valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
 
         selected_non_voters = st.multiselect(
