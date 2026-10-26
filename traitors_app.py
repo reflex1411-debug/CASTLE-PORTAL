@@ -753,6 +753,23 @@ def render_player_portal_view(selected_player):
                                 else:
                                     if st.button(f"📦 Box #{b_key}", key=btn_key):
                                         if not vault_contents[b_key]["opened"]:
+                                            b_item_type = vault_contents[b_key].get("type")
+                                            is_traitor = "Traitor" in str(role)
+
+                                            # --- TRAITORS' BANE FAITHFUL STEALTH RESET ---
+                                            if b_item_type == "Curse" and vault_contents[b_key].get("toxicity") == "Traitor-Lethal" and not is_traitor:
+                                                vault_contents[b_key] = {
+                                                    "type": "Points", 
+                                                    "value": 25, 
+                                                    "desc": "✨ 25 Group Prize Points added!", 
+                                                    "opened": False, 
+                                                    "opened_by": ""
+                                                }
+                                                state["vault_attempts"].setdefault(day_key, {})[selected_player] = attempts + 1
+                                                save_state(state)
+                                                st.warning("⚠️ The box felt bitterly cold to your touch, but the latch snapped shut before you could see inside! (Attempt counted).")
+                                                st.rerun()
+
                                             vault_contents[b_key]["opened"] = True
                                             vault_contents[b_key]["opened_by"] = selected_player
                                             state["vault_attempts"].setdefault(day_key, {})[selected_player] = attempts + 1
