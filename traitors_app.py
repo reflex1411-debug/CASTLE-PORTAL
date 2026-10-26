@@ -321,6 +321,7 @@ def get_default_state():
         "traitor_vote_locked": False,
         "chamber_of_relics_locked": True,
         "voting_active": True,
+        "chat_locked": False, # Host control to lock/unlock round table chat
         "castle_gates_open": True,
         "headline": "Welcome to Neilio's Castle! The Round Table voting is now live.",
         "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nCast your vote before voting is closed by the Host!",
@@ -445,7 +446,7 @@ def load_state():
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
                 "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history", "host_item_audit", "custom_songs"]:
-        state.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if key == "custom_songs" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open"] else {}))))
+        state.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if key == "custom_songs" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open", "chat_locked"] else {}))))
     
     default_state = get_default_state()
     state.setdefault("custom_curses", default_state["custom_curses"])
@@ -907,18 +908,22 @@ elif nav == "💬 Round Table Live Chat":
         else:
             st.info("No messages in the chat yet. Start the discussion below...")
 
-    with st.form("castle_chat_form", clear_on_submit=True):
-        c_input, c_btn = st.columns([4, 1])
-        chat_text = c_input.text_input("Type a message...", placeholder="Type your accusation or defense...", label_visibility="collapsed")
-        chat_submit = c_btn.form_submit_button("Send ➔")
-        if chat_submit and chat_text.strip():
-            chat_messages.append({
-                "author": chat_author,
-                "text": chat_text.strip(),
-                "time": datetime.now().strftime("%H:%M")
-            })
-            save_state(state)
-            st.rerun()
+    # --- CHECK IF CHAT IS LOCKED BY HOST ---
+    if state.get("chat_locked", False):
+        st.warning("🔒 **The Round Table Chat has been temporarily locked by Host Neilio.**")
+    else:
+        with st.form("castle_chat_form", clear_on_submit=True):
+            c_input, c_btn = st.columns([4, 1])
+            chat_text = c_input.text_input("Type a message...", placeholder="Type your accusation or defense...", label_visibility="collapsed")
+            chat_submit = c_btn.form_submit_button("Send ➔")
+            if chat_submit and chat_text.strip():
+                chat_messages.append({
+                    "author": chat_author,
+                    "text": chat_text.strip(),
+                    "time": datetime.now().strftime("%H:%M")
+                })
+                save_state(state)
+                st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1419,6 +1424,12 @@ elif nav == "👑 Host Control (Neilio)":
             save_state(state)
             st.info("Voting ended.")
             st.rerun()
+
+        # --- HOST CHAT LOCK TOGGLE ---
+        st.markdown("---")
+        st.subheader("💬 Round Table Chat Control")
+        state["chat_locked"] = st.toggle("🔒 Lock Round Table Chat Room (Suspend Messages)", value=state.get("chat_locked", False))
+        save_state(state)
 
         st.markdown("---")
         st.subheader("👻 Execute Non-Voter (Ghost Strike)")
