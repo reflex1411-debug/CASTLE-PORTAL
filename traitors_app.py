@@ -371,11 +371,12 @@ def get_default_state():
 # ==========================================
 # RELIC AUTOMATION & BOX INITIALIZATION
 # ==========================================
-def initialize_vault_boxes(day_k, total_boxes, config):
+def initialize_vault_boxes(day_k, total_boxes, config, current_state=None):
     boxes = {}
     box_numbers = list(range(1, total_boxes + 1))
     
-    day_curse_data = st.session_state.get("temp_curses", {}).get(day_k, state.get("custom_curses", {}).get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []}))
+    custom_curses = current_state.get("custom_curses", {}) if current_state else (state.get("custom_curses", {}) if 'state' in globals() else {})
+    day_curse_data = st.session_state.get("temp_curses", {}).get(day_k, custom_curses.get(day_k, {"enabled": True, "boxes": ["3", "7", "12", "15", "19"], "items": []}))
     
     random.shuffle(box_numbers)
     
@@ -457,26 +458,26 @@ def initialize_relics_boxes():
 
 def load_state():
     if not os.path.exists(DATA_FILE):
-        state = get_default_state()
-        save_state(state)
-        return state
+        state_dict = get_default_state()
+        save_state(state_dict)
+        return state_dict
     with open(DATA_FILE, "r") as f:
-        state = json.load(f)
+        state_dict = json.load(f)
     
     for key in ["fire_pit_round", "fire_pit_votes", "turret_nominations", "unanimous_murder",
                 "vault_contents", "vault_attempts", "vault_riddle_solved", "vault_recent_open",
                 "vault_room_open", "voting_matrix_unlocked", "traitor_vote_locked",
                 "chamber_of_relics_locked", "relics_vault_contents",
                 "round_table_chat", "round_table_timers", "round_table_tie_breaker", "non_voters", "public_execution", "login_history", "host_item_audit", "custom_songs"]:
-        state.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if key == "custom_songs" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open", "chat_locked"] else {}))))
+        state_dict.setdefault(key, [] if key in ["login_history", "host_item_audit"] else ({} if key == "custom_songs" else ({} if "votes" in key or "nominations" in key or "contents" in key or "chat" in key or "timers" in key or "breaker" in key or "execution" in key or "non_voters" in key or "unanimous" in key or "solved" in key or "attempts" in key else (True if key in ["vault_room_open", "voting_active", "castle_gates_open", "chat_locked"] else {}))))
     
     default_state = get_default_state()
-    state.setdefault("custom_curses", default_state["custom_curses"])
-    state.setdefault("vault_riddles", default_state["vault_riddles"])
-    state.setdefault("vault_config", default_state["vault_config"])
-    state.setdefault("relics_config", default_state["relics_config"])
+    state_dict.setdefault("custom_curses", default_state["custom_curses"])
+    state_dict.setdefault("vault_riddles", default_state["vault_riddles"])
+    state_dict.setdefault("vault_config", default_state["vault_config"])
+    state_dict.setdefault("relics_config", default_state["relics_config"])
 
-    for p in state.get("players", {}).values():
+    for p in state_dict.get("players", {}).values():
         p["role"] = str(p.get("role", "Faithful"))
         p["status"] = str(p.get("status", "Alive"))
         p.setdefault("hide_role", False)
@@ -485,14 +486,14 @@ def load_state():
         p.setdefault("points", 0)
         p.setdefault("claimed_items", [])
         
-    synth_v_key = f"Day {state.get('current_day', 1)}"
-    if synth_v_key not in state.setdefault("vault_contents", {}):
-        alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-        state["vault_contents"][synth_v_key] = initialize_vault_boxes(synth_v_key, max(alive_c * 3, 15), state["vault_config"])
+    synth_v_key = f"Day {state_dict.get('current_day', 1)}"
+    if synth_v_key not in state_dict.setdefault("vault_contents", {}):
+        alive_c = sum(1 for d in state_dict["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
+        state_dict["vault_contents"][synth_v_key] = initialize_vault_boxes(synth_v_key, max(alive_c * 3, 15), state_dict["vault_config"], current_state=state_dict)
 
-    return state
+    return state_dict
 
-def save_state(state):
+def save_state(state_data):
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             current_data = f.read()
@@ -500,9 +501,9 @@ def save_state(state):
             f.write(current_data)
             
     with open(DATA_FILE, "w") as f:
-        json.dump(state, f, indent=4)
+        json.dump(state_data, f, indent=4)
         
-    send_email_backup(state)
+    send_email_backup(state_data)
 
 state = load_state()
 day_key = f"Day {state['current_day']}"
@@ -542,12 +543,12 @@ def get_public_identity(pdata, force_reveal=False):
     if "Traitor" in role: return f"🗡️ {role.upper()}", "role-traitor"
     return "🕯️ Faithful", "role-faithful"
 
-def compute_superlatives(state):
-    all_traitors = {n for n, d in state["players"].items() if "Traitor" in str(d.get("role", ""))}
-    detective_scores = {n: 0 for n, d in state["players"].items() if "Traitor" not in str(d.get("role", ""))}
-    votes_against = {n: 0 for n in state["players"]}
+def compute_superlatives(state_data):
+    all_traitors = {n for n, d in state_data["players"].items() if "Traitor" in str(d.get("role", ""))}
+    detective_scores = {n: 0 for n, d in state_data["players"].items() if "Traitor" not in str(d.get("role", ""))}
+    votes_against = {n: 0 for n in state_data["players"]}
 
-    for d_votes in state["votes"].values():
+    for d_votes in state_data["votes"].values():
         for voter, vdata in d_votes.items():
             target = vdata["target"]
             if target in votes_against:
@@ -704,7 +705,7 @@ def render_player_portal_view(selected_player):
         total_boxes = alive_count * 3
         vault_contents = state["vault_contents"].setdefault(day_key, {})
         if not vault_contents:
-            state["vault_contents"][day_key] = initialize_vault_boxes(day_key, total_boxes, state["vault_config"])
+            state["vault_contents"][day_key] = initialize_vault_boxes(day_key, total_boxes, state["vault_config"], current_state=state)
             save_state(state)
             vault_contents = state["vault_contents"][day_key]
 
@@ -1291,7 +1292,7 @@ elif nav == "👑 Host Control (Neilio)":
         current_vault_data = state["vault_contents"].setdefault(synth_vault_key, {})
         if not current_vault_data:
             alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-            state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
+            state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"], current_state=state)
             save_state(state)
             current_vault_data = state["vault_contents"][synth_vault_key]
 
@@ -1309,7 +1310,7 @@ elif nav == "👑 Host Control (Neilio)":
             
             if st.button("🎲 Randomise Armoury Boxes Now", key="host_randomise_boxes_btn"):
                 alive_c = sum(1 for d in state["players"].values() if str(d.get("status", "")) in ["Alive", "Undead"])
-                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"])
+                state["vault_contents"][synth_vault_key] = initialize_vault_boxes(synth_vault_key, max(alive_c * 3, 15), state["vault_config"], current_state=state)
                 save_state(state)
                 st.success("🎲 Armoury boxes successfully randomised!")
                 st.rerun()
