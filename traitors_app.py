@@ -753,6 +753,16 @@ def render_player_portal_view(selected_player):
                                                 st.warning("⚠️ The box felt bitterly cold to your touch, but the latch snapped shut before you could see inside! (Attempt counted).")
                                                 st.rerun()
 
+                                            # --- TRAITORS' BANE TRAP FOR TRAITORS ---
+                                            if b_item_type == "Curse" and vault_contents[b_key].get("toxicity") == "Traitor-Lethal" and is_traitor:
+                                                vault_contents[b_key]["opened"] = True
+                                                vault_contents[b_key]["opened_by"] = selected_player
+                                                state["players"][selected_player]["status"] = "Banished"
+                                                state["players"][selected_player]["eliminated_day"] = day_key
+                                                save_state(state)
+                                                st.error("🗡️ **TRAITORS' BANE TRIGGERED!** You triggered the hidden trap! You are instantly eliminated from the Castle!")
+                                                st.stop()
+
                                             vault_contents[b_key]["opened"] = True
                                             vault_contents[b_key]["opened_by"] = selected_player
                                             state["vault_attempts"].setdefault(day_key, {})[selected_player] = attempts + 1
@@ -773,18 +783,6 @@ def render_player_portal_view(selected_player):
                                             elif b_data["type"] == "Points":
                                                 state["prize_pot"] += b_data["value"]
                                                 state["players"][selected_player]["points"] += b_data["value"]
-                                            elif b_data["type"] == "Curse":
-                                                if b_data.get("toxicity") == "Instant Death" or ("Traitor" in str(role) and b_data.get("target_role") == "Traitor"):
-                                                    
-                                                    # --- AUTOMATED PHOENIX FEATHER BROOCH CHECK ---
-                                                    if player_has_relic(selected_player, "Phoenix Feather Brooch"):
-                                                        consumed = consume_relic(selected_player, "Phoenix Feather Brooch")
-                                                        st.balloons()
-                                                        st.success(f"🔥 **PHOENIX REBIRTH TRIGGERED!** Your *{consumed['desc']}* turns to ash, saving you from instant death!")
-                                                    else:
-                                                        state["players"][selected_player]["status"] = "Murdered"
-                                                        state["players"][selected_player]["eliminated_day"] = day_key
-                                                        st.session_state["instant_death_player"] = selected_player
 
                                             save_state(state)
                                             st.rerun()
@@ -953,57 +951,55 @@ elif nav == "💬 Round Table Live Chat":
 # TAB 3: PUBLIC EXECUTION ROOM
 # ==========================================
 elif nav == "💀 Public Execution Room":
-    st.title("💀 The Public Execution Chamber")
+    st.title("💀 The Public Execution Chamber — Save & Sentence")
     st.markdown(
-        "> *\"Those who fail to cast their ballot before the Castle gates seal are branded as cowards and traitors to the realm. "
-        "The living must now vote to send a silent soul straight to the Ghost's gallows...\"*"
+        "> *\"The castle gates have sealed. You must log in through your Player Portal to cast your vote to **SAVE ONE SOUL** from the gallows. "
+        "When the votes are tallied, the two players with the fewest save votes will be condemned and eliminated!\"*"
     )
 
     timers = state["round_table_timers"].get(day_key, {"voting_closes": "21:00"})
     st.markdown(f"### ⏳ Voting Closure Countdown: **{timers['voting_closes']}**")
     st.divider()
 
-    manual_non_voters = state["non_voters"].setdefault(day_key, [])
-
-    if not manual_non_voters:
-        st.success("✨ All surviving players successfully cast their votes! The execution chamber is empty.")
+    if "logged_in_player" not in st.session_state or st.session_state["logged_in_player"] not in state["players"]:
+        st.warning("🔒 **PORTAL LOCKED:** You must log into your Player Portal using your 4-digit PIN in the sidebar or Player Portal tab before you can cast your save vote!")
     else:
-        st.warning(f"⚠️ **{len(manual_non_voters)} player(s) failed to vote and face Public Execution:**")
-        for nv in manual_non_voters:
-            st.markdown(f"• 🩸 <b>{nv}</b>", unsafe_allow_html=True)
+        exec_voter = st.session_state["logged_in_player"]
+        p_stat = str(state["players"][exec_voter].get("status", "Alive"))
 
-        st.divider()
-        st.subheader("⚖️ Cast Your Execution Vote")
-        
-        alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-        default_voter_idx = 0
-        if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in alive_players:
-            default_voter_idx = alive_players.index(st.session_state["logged_in_player"])
-
-        exec_voter = st.selectbox("Select Your Name (Voter):", alive_players, index=default_voter_idx, key="exec_voter_select")
-        st.info(f"Voting as: **{exec_voter}**")
-
-        pub_exec_votes = state["public_execution"].setdefault(day_key, {})
-
-        with st.form("public_execution_form"):
-            exec_target = st.selectbox("Select guilty non-voter to execute:", manual_non_voters)
-            exec_submit = st.form_submit_button("Throw them to the Ghost 👻")
-            if exec_submit:
-                pub_exec_votes[exec_voter] = exec_target
-                save_state(state)
-                st.success(f"✅ Your vote ({exec_voter}) to throw **{exec_target}** to the ghost has been recorded!")
-
-        st.markdown("---")
-        st.subheader("📊 Live Execution Tally Board")
-        tally = {}
-        for v in pub_exec_votes.values():
-            tally[v] = tally.get(v, 0) + 1
-
-        if tally:
-            for target, count in tally.items():
-                st.markdown(f"• 👻 **{target}**: `{count} vote(s)`")
+        if p_stat not in ["Alive", "Undead"]:
+            st.error("👻 Ghosts and eliminated souls cannot cast save votes!")
         else:
-            st.info("No execution votes cast yet.")
+            # Check if player failed to vote in Round Table (non-voters list)
+            manual_non_voters = state["non_voters"].get(day_key, [])
+            if exec_voter in manual_non_voters:
+                st.error("⚠️ **EXECUTION CHAMBER RESTRICTION:** Because you failed to cast your Round Table vote, you are locked inside the execution chamber and **cannot** cast a save vote!")
+            else:
+                st.success(f"🔑 Casting save vote as: **{exec_voter}**")
+                alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
+                pub_exec_votes = state["public_execution"].setdefault(day_key, {})
+
+                with st.form("public_execution_form"):
+                    save_target = st.selectbox("Select ONE player you wish to SAVE:", alive_players, key="save_target_select")
+                    exec_submit = st.form_submit_button("Cast Save Vote 🛡️")
+                    if exec_submit:
+                        pub_exec_votes[exec_voter] = save_target
+                        save_state(state)
+                        st.success(f"✅ Your vote to SAVE **{save_target}** has been recorded!")
+
+                st.markdown("---")
+                st.subheader("📊 Live Save Tally Board")
+                tally = {p: 0 for p in alive_players}
+                for v in pub_exec_votes.values():
+                    if v in tally:
+                        tally[v] += 1
+
+                if tally:
+                    sorted_tally = sorted(tally.items(), key=lambda x: x[1])
+                    for target, count in sorted_tally:
+                        st.markdown(f"• 🛡️ **{target}**: `{count} save vote(s)`")
+                else:
+                    st.info("No save votes cast yet.")
 
 # ==========================================
 # TAB 4: PLAYER PORTAL
@@ -1385,25 +1381,7 @@ elif nav == "👑 Host Control (Neilio)":
                 st.rerun()
 
         st.markdown("---")
-        st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
-        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
-        current_non_voters = state["non_voters"].setdefault(day_key, [])
-        
-        valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
-
-        selected_non_voters = st.multiselect(
-            f"Select players who did NOT vote for {day_key}:",
-            options=alive_names,
-            default=valid_default_non_voters,
-            key="host_non_voters_multiselect"
-        )
-        if st.button("💾 Save Non-Voters List", key="host_save_non_voters_btn"):
-            state["non_voters"][day_key] = selected_non_voters
-            save_state(state)
-            st.success("✅ Non-voters updated and sent to the Public Execution Room!")
-            st.rerun()
-
-        st.divider()
+        st.subheader("🕹️ Host Voting Phase Controls")
         c_v1, c_v2, c_v3 = st.columns(3)
         if c_v1.button("🟢 Start Voting Live", key="host_start_voting_btn"):
             state["voting_active"] = True
@@ -1421,51 +1399,43 @@ elif nav == "👑 Host Control (Neilio)":
             st.info("Voting ended.")
             st.rerun()
 
-        # --- LIVE HOST VOTING TALLY BOARD (NEW) ---
+        # --- LIVE HOST SAVE TALLY & EXECUTION (TWO LOWEST ELIMINATED) ---
         st.markdown("---")
-        st.subheader(f"📊 Live Host Voting Tally ({day_key})")
-        host_votes = state["votes"].get(day_key, {})
-        if host_votes:
-            host_tally = {}
-            for voter_raw, vdata in host_votes.items():
-                clean_voter = voter_raw.replace("🔒 [ANONYMOUS SHADOW — ", "").replace("]", "")
-                target = vdata["target"]
-                host_tally[target] = host_tally.get(target, 0) + 1
-                st.markdown(f"• 🕯️ **{clean_voter}** voted for **{target}** (*\"{vdata['reason']}\"*)")
-            
-            st.markdown("---")
-            st.markdown("**Current Vote Counts:**")
-            for t_name, t_count in sorted(host_tally.items(), key=lambda x: x[1], reverse=True):
-                st.markdown(f"• **{t_name}**: `{t_count} vote(s)`")
-        else:
-            st.info("No votes have been locked in by players yet for today.")
+        st.subheader(f"📊 Live Host Save Tally & Execution ({day_key})")
+        pub_exec_votes = state["public_execution"].get(day_key, {})
+        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
+        
+        host_tally = {p: 0 for p in alive_names}
+        for voter_raw, saved_target in pub_exec_votes.items():
+            if saved_target in host_tally:
+                host_tally[saved_target] += 1
+            st.markdown(f"• 🛡️ **{voter_raw}** voted to save **{saved_target}**")
+
+        st.markdown("---")
+        st.markdown("**Save Vote Counts (Lowest two will be eliminated):**")
+        for t_name, t_count in sorted(host_tally.items(), key=lambda x: x[1]):
+            st.markdown(f"• **{t_name}**: `{t_count} save vote(s)`")
+
+        if st.button("🪓 Sentence Two Lowest Voted Players (Execute)", key="host_exec_save_btn"):
+            if len(alive_names) < 2:
+                st.error("Not enough living players to eliminate two!")
+            else:
+                sorted_scores = sorted(host_tally.items(), key=lambda x: x[1])
+                # Take the two players with the lowest save votes
+                lowest_two = [sorted_scores[0][0], sorted_scores[1][0]]
+                
+                for victim in lowest_two:
+                    state["players"][victim]["status"] = "Executed (Lowest Save Votes)"
+                    state["players"][victim]["eliminated_day"] = day_key
+                
+                save_state(state)
+                st.error(f"👻 **GHOST SENTENCE!** With the fewest save votes, **{lowest_two[0]}** and **{lowest_two[1]}** have been condemned and eliminated from the Castle!")
 
         # --- HOST CHAT LOCK TOGGLE ---
         st.markdown("---")
         st.subheader("💬 Round Table Chat Control")
         state["chat_locked"] = st.toggle("🔒 Lock Round Table Chat Room (Suspend Messages)", value=state.get("chat_locked", False), key="host_chat_lock_toggle")
         save_state(state)
-
-        st.markdown("---")
-        st.subheader("👻 Execute Non-Voter (Ghost Strike)")
-        if st.button("🪓 Tally Execution Votes & Execute Most Voted", key="host_exec_voter_btn"):
-            pub_exec_votes = state["public_execution"].get(day_key, {})
-            tally = {}
-            for v in pub_exec_votes.values():
-                tally[v] = tally.get(v, 0) + 1
-            if tally:
-                max_v = max(tally.values())
-                top_t = [t for t, c in tally.items() if c == max_v]
-                if len(top_t) > 1:
-                    st.error(f"⚖️ **TIE DETECTED IN EXECUTION:** Between: {', '.join(top_t)}. Automatic re-vote required!")
-                else:
-                    victim = top_t[0]
-                    state["players"][victim]["status"] = "Executed (No Vote Penalty)"
-                    state["players"][victim]["eliminated_day"] = day_key
-                    save_state(state)
-                    st.error(f"👻 **GHOST STRIKE!** {victim} received {max_v} execution votes and has been instantly struck down by the Ghost!")
-            else:
-                st.warning("No execution votes recorded.")
 
         st.markdown("---")
         st.subheader("1. Game Day, Phase & Decrees")
