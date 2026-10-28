@@ -970,7 +970,6 @@ elif nav == "💀 Public Execution Room":
         if p_stat not in ["Alive", "Undead"]:
             st.error("👻 Ghosts and eliminated souls cannot cast save votes!")
         else:
-            # Check if player failed to vote in Round Table (non-voters list)
             manual_non_voters = state["non_voters"].get(day_key, [])
             if exec_voter in manual_non_voters:
                 st.error("⚠️ **EXECUTION CHAMBER RESTRICTION:** Because you failed to cast your Round Table vote, you are locked inside the execution chamber and **cannot** cast a save vote!")
@@ -1318,9 +1317,9 @@ elif nav == "👑 Host Control (Neilio)":
         r_info = relics_config_dict[selected_relic_box]
         
         with st.form("edit_relic_form"):
-            new_r_name = st.text_input("Relic Name / Item:", value=r_info["name"], key="host_relic_name_input")
-            new_r_clue = st.text_area("Riddle / Clue:", value=r_info["clue"], key="host_relic_clue_input")
-            new_r_ans = st.text_input("Correct Keywords (comma separated):", value=r_info["answer"], key="host_relic_ans_input")
+            new_r_name = st.text_input("Relic Name / Item:", value=r_info["name"], key="host_r_name_input")
+            new_r_clue = st.text_area("Riddle / Clue:", value=r_info["clue"], key="host_r_clue_input")
+            new_r_ans = st.text_input("Correct Keywords (comma separated):", value=r_info["answer"], key="host_r_ans_input")
             if st.form_submit_button("💾 Save & Sync Relic Box Changes"):
                 relics_config_dict[selected_relic_box] = {
                     "name": new_r_name.strip(),
@@ -1399,20 +1398,32 @@ elif nav == "👑 Host Control (Neilio)":
             st.info("Voting ended.")
             st.rerun()
 
-        # --- LIVE HOST SAVE TALLY & EXECUTION (TWO LOWEST ELIMINATED) ---
+        # --- LIVE HOST SAVE TALLY & VOTE RESET CONTROLS ---
         st.markdown("---")
-        st.subheader(f"📊 Live Host Save Tally & Execution ({day_key})")
+        st.subheader(f"📊 Live Host Save Tally & Vote Reset ({day_key})")
         pub_exec_votes = state["public_execution"].get(day_key, {})
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         
         host_tally = {p: 0 for p in alive_names}
-        for voter_raw, saved_target in pub_exec_votes.items():
-            if saved_target in host_tally:
-                host_tally[saved_target] += 1
-            st.markdown(f"• 🛡️ **{voter_raw}** voted to save **{saved_target}**")
+        
+        if pub_exec_votes:
+            st.markdown("**Cast Save Votes (Inspect & Reset individual errors):**")
+            for voter_name, saved_target in list(pub_exec_votes.items()):
+                if saved_target in host_tally:
+                    host_tally[saved_target] += 1
+                
+                col_v1, col_v2 = st.columns([3, 1])
+                col_v1.markdown(f"• 👤 **{voter_name}** voted to save 🛡️ **{saved_target}**")
+                if col_v2.button("🔄 Reset Vote", key=f"reset_save_vote_{voter_name}"):
+                    del pub_exec_votes[voter_name]
+                    save_state(state)
+                    st.success(f"✅ Reset vote for **{voter_name}**!")
+                    st.rerun()
+        else:
+            st.info("No save votes cast yet today.")
 
         st.markdown("---")
-        st.markdown("**Save Vote Counts (Lowest two will be eliminated):**")
+        st.markdown("**Current Save Vote Totals (Lowest two will be eliminated):**")
         for t_name, t_count in sorted(host_tally.items(), key=lambda x: x[1]):
             st.markdown(f"• **{t_name}**: `{t_count} save vote(s)`")
 
@@ -1421,7 +1432,6 @@ elif nav == "👑 Host Control (Neilio)":
                 st.error("Not enough living players to eliminate two!")
             else:
                 sorted_scores = sorted(host_tally.items(), key=lambda x: x[1])
-                # Take the two players with the lowest save votes
                 lowest_two = [sorted_scores[0][0], sorted_scores[1][0]]
                 
                 for victim in lowest_two:
