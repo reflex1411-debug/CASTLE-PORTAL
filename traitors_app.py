@@ -1380,7 +1380,27 @@ elif nav == "👑 Host Control (Neilio)":
                 st.rerun()
 
         st.markdown("---")
-        st.subheader("🕹️ Host Voting Phase Controls")
+        st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
+        
+        # --- RESTORED NON-VOTER SELECTION TOOL ---
+        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
+        current_non_voters = state["non_voters"].setdefault(day_key, [])
+        valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
+
+        with st.form("host_non_voters_form"):
+            selected_non_voters = st.multiselect(
+                f"Select players who failed to vote at Round Table ({day_key}):",
+                options=alive_names,
+                default=valid_default_non_voters,
+                key="host_non_voters_multiselect"
+            )
+            if st.form_submit_button("💾 Save Non-Voters List"):
+                state["non_voters"][day_key] = selected_non_voters
+                save_state(state)
+                st.success("✅ Non-voters updated and sent to the Execution Chamber restriction list!")
+                st.rerun()
+
+        st.divider()
         c_v1, c_v2, c_v3 = st.columns(3)
         if c_v1.button("🟢 Start Voting Live", key="host_start_voting_btn"):
             state["voting_active"] = True
@@ -1402,7 +1422,6 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
         st.subheader(f"📊 Live Host Save Tally & Vote Reset ({day_key})")
         pub_exec_votes = state["public_execution"].get(day_key, {})
-        alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         
         host_tally = {p: 0 for p in alive_names}
         
