@@ -972,17 +972,12 @@ elif nav == "💀 Public Execution Room":
             st.error("👻 Ghosts and eliminated souls cannot cast save votes!")
         else:
             manual_non_voters = state["non_voters"].get(day_key, [])
-            
-            # --- RESTRICTION CHECK: Non-voters cannot vote, and cannot save themselves or each other ---
             if exec_voter in manual_non_voters:
                 st.error("⚠️ **EXECUTION CHAMBER RESTRICTION:** Because you failed to cast your Round Table vote, you are locked inside the execution chamber and **cannot** cast a save vote!")
             else:
                 st.success(f"🔑 Casting save vote as: **{exec_voter}**")
                 alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-                
-                # Exclude self and anyone else currently in the execution chamber (non-voters) from being save targets
                 saveable_targets = [p for p in alive_players if p != exec_voter and p not in manual_non_voters]
-                
                 pub_exec_votes = state["public_execution"].setdefault(day_key, {})
 
                 if not saveable_targets:
@@ -1392,17 +1387,17 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
         st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
         
-        # --- HOST NON-VOTER SELECTION TOOL ---
+        # --- HOST NON-VOTER SELECTION TOOL WITH DYNAMIC KEY ---
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
-        current_non_voters = state["non_voters"].setdefault(day_key, [])
+        current_non_voters = state.setdefault("non_voters", {}).setdefault(day_key, [])
         valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
 
-        with st.form("host_non_voters_form"):
+        with st.form(f"host_non_voters_form_{day_key}"):
             selected_non_voters = st.multiselect(
                 f"Select players who failed to vote at Round Table ({day_key}) (sent to Execution Chamber):",
                 options=alive_names,
                 default=valid_default_non_voters,
-                key="host_non_voters_multiselect"
+                key=f"host_non_voters_multiselect_{day_key}"
             )
             if st.form_submit_button("💾 Save Non-Voters List"):
                 state["non_voters"][day_key] = selected_non_voters
