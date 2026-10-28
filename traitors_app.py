@@ -977,14 +977,17 @@ elif nav == "💀 Public Execution Room":
             else:
                 st.success(f"🔑 Casting save vote as: **{exec_voter}**")
                 alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
-                saveable_targets = [p for p in alive_players if p != exec_voter and p not in manual_non_voters]
+                
+                # STRICT REQUIREMENT: Eligible players should ONLY see the non-voters you selected!
+                saveable_targets = [p for p in manual_non_voters if p in alive_players and p != exec_voter]
+                
                 pub_exec_votes = state["public_execution"].setdefault(day_key, {})
 
                 if not saveable_targets:
-                    st.warning("⚠️ There are no eligible players outside the execution chamber left to save!")
+                    st.warning("⚠️ There are no prisoners in the execution chamber to save right now!")
                 else:
                     with st.form("public_execution_form"):
-                        save_target = st.selectbox("Select ONE player you wish to SAVE (cannot be yourself or another prisoner):", saveable_targets, key="save_target_select")
+                        save_target = st.selectbox("Select ONE prisoner you wish to SAVE:", saveable_targets, key="save_target_select")
                         exec_submit = st.form_submit_button("Cast Save Vote 🛡️")
                         if exec_submit:
                             pub_exec_votes[exec_voter] = save_target
@@ -993,7 +996,7 @@ elif nav == "💀 Public Execution Room":
 
                 st.markdown("---")
                 st.subheader("📊 Live Save Tally Board")
-                tally = {p: 0 for p in alive_players}
+                tally = {p: 0 for p in manual_non_voters}
                 for v in pub_exec_votes.values():
                     if v in tally:
                         tally[v] += 1
@@ -1387,7 +1390,7 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
         st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
         
-        # --- HOST NON-VOTER SELECTION TOOL WITH DYNAMIC KEY ---
+        # --- HOST NON-VOTER SELECTION TOOL ---
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         current_non_voters = state.setdefault("non_voters", {}).setdefault(day_key, [])
         valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
@@ -1426,13 +1429,20 @@ elif nav == "👑 Host Control (Neilio)":
         # --- LIVE HOST SAVE TALLY & VOTE RESET CONTROLS ---
         st.markdown("---")
         st.subheader(f"📊 Live Host Save Tally & Vote Reset ({day_key})")
-        pub_exec_votes = state["public_execution"].get(day_key, {})
+        pub_exec_votes = state["public_execution"].setdefault(day_key, {})
         
-        host_tally = {p: 0 for p in alive_names}
+        # Tally strictly counts votes for the prisoners (non-voters)
+        host_tally = {p: 0 for p in current_non_voters}
         
         if pub_exec_votes:
             st.markdown("**Cast Save Votes (Inspect & Reset individual errors):**")
             for voter_name, saved_target in list(pub_exec_votes.items()):
+                # Remove votes if voter became a prisoner or target is invalid
+                if voter_name in current_non_voters or saved_target not in current_non_voters:
+                    del pub_exec_votes[voter_name]
+                    save_state(state)
+                    continue
+
                 if saved_target in host_tally:
                     host_tally[saved_target] += 1
                 
@@ -1452,8 +1462,8 @@ elif nav == "👑 Host Control (Neilio)":
             st.markdown(f"• **{t_name}**: `{t_count} save vote(s)`")
 
         if st.button("🪓 Sentence Two Lowest Voted Players (Execute)", key="host_exec_save_btn"):
-            if len(alive_names) < 2:
-                st.error("Not enough living players to eliminate two!")
+            if len(current_non_voters) < 2:
+                st.error("There must be at least 2 prisoners in the execution chamber to sentence two!")
             else:
                 sorted_scores = sorted(host_tally.items(), key=lambda x: x[1])
                 lowest_two = [sorted_scores[0][0], sorted_scores[1][0]]
@@ -1541,7 +1551,7 @@ elif nav == "👑 Host Control (Neilio)":
         with b_col4:
             uploaded_file = st.file_uploader("⬆️ Upload JSON", type=["json"], label_visibility="collapsed", key="host_upload_json_file")
             if uploaded_file is not None:
-                if st.button("🔄 Confirm File Upload", key="host_confirm_upload_btn"):
+                if st.button("Confirm File Upload", key="host_confirm_upload_btn"):
                     restored_state = json.load(uploaded_file)
                     save_state(restored_state)
                     st.success("✅ Vault successfully restored from uploaded file!")
