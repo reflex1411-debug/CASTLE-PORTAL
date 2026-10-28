@@ -4,6 +4,7 @@ import json
 import os
 import base64
 import random
+import time
 from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
@@ -316,6 +317,8 @@ def get_default_state():
         "voting_active": True,
         "chat_locked": False,
         "castle_gates_open": True,
+        "hall_of_destiny_enabled": False,
+        "hall_of_destiny_choices": {},
         "headline": "Welcome to Neilio's Castle! The Round Table voting is now live.",
         "mission_text": "🏆 **MISSION: ROUND TABLE ACCUSATIONS**\nCast your vote before voting is closed by the Host!",
         "players": default_players,
@@ -458,6 +461,8 @@ def load_state():
     state_dict.setdefault("vault_riddles", default_state["vault_riddles"])
     state_dict.setdefault("vault_config", default_state["vault_config"])
     state_dict.setdefault("relics_config", default_state["relics_config"])
+    state_dict.setdefault("hall_of_destiny_enabled", False)
+    state_dict.setdefault("hall_of_destiny_choices", {})
 
     for p in state_dict.get("players", {}).values():
         p["role"] = str(p.get("role", "Faithful"))
@@ -496,7 +501,6 @@ is_finale_unlocked = (state["phase"] == "🏆 The Grand Reveal (Finale)")
 # RELIC AUTOMATION HELPER FUNCTIONS
 # ==========================================
 def player_has_relic(player_name, relic_keyword):
-    """Checks if a player holds an item containing a specific keyword in their inventory."""
     p_data = state["players"].get(player_name, {})
     claimed = p_data.get("claimed_items", [])
     for item in claimed:
@@ -505,7 +509,6 @@ def player_has_relic(player_name, relic_keyword):
     return False
 
 def consume_relic(player_name, relic_keyword):
-    """Removes a single-use relic from a player's inventory once triggered."""
     p_data = state["players"].get(player_name, {})
     claimed = p_data.get("claimed_items", [])
     for idx, item in enumerate(claimed):
@@ -524,28 +527,6 @@ def get_public_identity(pdata, force_reveal=False):
         if status in ["Undead", "Murdered", "Banished", "Executed (No Vote Penalty)"]: return "🕯️ Faithful", "role-faithful"
     if "Traitor" in role: return f"🗡️ {role.upper()}", "role-traitor"
     return "🕯️ Faithful", "role-faithful"
-
-def compute_superlatives(state_data):
-    all_traitors = {n for n, d in state_data["players"].items() if "Traitor" in str(d.get("role", ""))}
-    detective_scores = {n: 0 for n, d in state_data["players"].items() if "Traitor" not in str(d.get("role", ""))}
-    votes_against = {n: 0 for n in state_data["players"]}
-
-    for d_votes in state_data["votes"].values():
-        for voter, vdata in d_votes.items():
-            target = vdata["target"]
-            if target in votes_against:
-                votes_against[target] += 1
-            if voter in detective_scores and target in all_traitors:
-                detective_scores[voter] += 1
-
-    best_detective = max(detective_scores.items(), key=lambda x: x[1]) if detective_scores else ("None", 0)
-    scapegoat = max(votes_against.items(), key=lambda x: x[1]) if votes_against else ("None", 0)
-    stealth_traitor = min(
-        ((n, votes_against[n]) for n in all_traitors),
-        key=lambda x: x[1],
-        default=("None", 0)
-    )
-    return best_detective, scapegoat, stealth_traitor
 
 def render_player_portal_view(selected_player):
     p_info = state["players"][selected_player]
@@ -583,7 +564,6 @@ def render_player_portal_view(selected_player):
         else:
             st.info("You haven't opened any Safety Deposit Boxes or Relic Chambers yet today.")
 
-    # --- AUTOMATED JESTER'S GOLD TOOTH FEATURE ---
     if player_has_relic(selected_player, "Jester’s Gold Tooth"):
         st.divider()
         with st.expander("🃏 Unleash Jester's Gold Tooth (Point Swap)"):
@@ -624,7 +604,6 @@ def render_player_portal_view(selected_player):
         elif not state.get("voting_active", True):
             st.warning("🔒 **Voting is currently closed. Reviewing final votes below:**")
             
-            # --- SECRET VOTE REVEAL PANEL ---
             vote_key = day_key
             cast_votes = state["votes"].get(vote_key, {})
             if cast_votes:
@@ -644,7 +623,6 @@ def render_player_portal_view(selected_player):
                 alive_targets = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"] and n != selected_player]
                 vote_key = f"{day_key}_tie" if is_tie_breaker else day_key
                 
-                # Check if player already voted (permanent lock)
                 existing_vote = None
                 for v_key, v_data in state["votes"].get(vote_key, {}).items():
                     if selected_player in v_key:
@@ -679,7 +657,6 @@ def render_player_portal_view(selected_player):
         st.subheader("🗳️ Round Table Ballot")
         st.info("🔒 **The Round Table is currently sealed.**")
 
-    # --- VAULT OF SAFETY DEPOSIT BOXES ---
     st.divider()
     st.subheader("🏦 The Wall of Safety Deposit Boxes")
     if state.get("vault_room_open", True):
@@ -700,12 +677,11 @@ def render_player_portal_view(selected_player):
         else:
             st.markdown(f"**Attempts Today:** `{attempts} / 3 used`")
             
-            # --- AUTOMATED HOURGLASS PENDANT CHECK FOR ATTEMPTS ---
             if attempts >= 3 and player_has_relic(selected_player, "Hourglass Pendant"):
                 st.warning("⏳ You have used all 3 attempts, but your **Hourglass Pendant** can rewind time!")
                 if st.button("Use Hourglass Pendant for +1 Bonus Attempt ⏳"):
                     consume_relic(selected_player, "Hourglass Pendant")
-                    state["vault_attempts"][day_key][selected_player] = 2  # Reset back to 2 so they get 1 more try
+                    state["vault_attempts"][day_key][selected_player] = 2 
                     save_state(state)
                     st.success("⏳ Time rewinds! Your Hourglass Pendant shatters, granting you 1 additional vault box attempt.")
                     st.rerun()
@@ -739,7 +715,6 @@ def render_player_portal_view(selected_player):
                                             b_item_type = vault_contents[b_key].get("type")
                                             is_traitor = "Traitor" in str(role)
 
-                                            # --- TRAITORS' BANE FAITHFUL STEALTH RESET ---
                                             if b_item_type == "Curse" and vault_contents[b_key].get("toxicity") == "Traitor-Lethal" and not is_traitor:
                                                 vault_contents[b_key] = {
                                                     "type": "Points", 
@@ -753,7 +728,6 @@ def render_player_portal_view(selected_player):
                                                 st.warning("⚠️ The box felt bitterly cold to your touch, but the latch snapped shut before you could see inside! (Attempt counted).")
                                                 st.rerun()
 
-                                            # --- TRAITORS' BANE TRAP FOR TRAITORS ---
                                             if b_item_type == "Curse" and vault_contents[b_key].get("toxicity") == "Traitor-Lethal" and is_traitor:
                                                 vault_contents[b_key]["opened"] = True
                                                 vault_contents[b_key]["opened_by"] = selected_player
@@ -803,7 +777,6 @@ def render_player_portal_view(selected_player):
                 st.success("Your final message has echoed through the castle.")
                 st.rerun()
 
-    # --- TRAITOR TURRET ---
     if "Traitor" in role and status in ["Alive", "Undead"]:
         st.divider()
         st.subheader("🗡️ The Traitors' Turret (Secret Access)")
@@ -849,8 +822,13 @@ nav_options = [
     "💍 Chamber of Relics",
     "📊 The Voting Matrix",
     "🏆 The Grand Reveal (4PM Finale)",
-    "👑 Host Control (Neilio)"
 ]
+
+# Conditionally append The Hall of Secret Destiny if activated by Host Neilio
+if state.get("hall_of_destiny_enabled", False):
+    nav_options.insert(4, "🔮 The Hall of Secret Destiny")
+
+nav_options.append("👑 Host Control (Neilio)")
 nav = st.sidebar.radio("Navigate", nav_options)
 
 # ==========================================
@@ -895,7 +873,6 @@ if nav == "🏰 Castle Hall (Public)":
 elif nav == "💬 Round Table Live Chat":
     st.title("💬 Round Table Live Chat")
     
-    # --- SECURE CHAT IDENTITY (NO SPOOFING) ---
     if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
         chat_author = st.session_state["logged_in_player"]
         st.success(f"💬 Chatting as: **{chat_author}**")
@@ -928,7 +905,6 @@ elif nav == "💬 Round Table Live Chat":
         else:
             st.info("No messages in the chat yet. Start the discussion below...")
 
-    # --- CHECK IF CHAT IS LOCKED BY HOST ---
     if state.get("chat_locked", False):
         st.warning("🔒 **The Round Table Chat has been temporarily locked by Host Neilio.**")
     else:
@@ -978,7 +954,6 @@ elif nav == "💀 Public Execution Room":
                 st.success(f"🔑 Casting save vote as: **{exec_voter}**")
                 alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
                 
-                # STRICT REQUIREMENT: Eligible players should ONLY see the non-voters you selected!
                 saveable_targets = [p for p in manual_non_voters if p in alive_players and p != exec_voter]
                 
                 pub_exec_votes = state["public_execution"].setdefault(day_key, {})
@@ -1141,7 +1116,82 @@ elif nav == "🏆 The Grand Reveal (4PM Finale)":
             st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 8: HOST CONTROL CENTRE
+# TAB 8: THE HALL OF SECRET DESTINY
+# ==========================================
+elif nav == "🔮 The Hall of Secret Destiny":
+    st.title("🔮 The Hall of Secret Destiny")
+    st.markdown(
+        "> *\"The mists part to reveal an ancient chamber lined with twenty-one sealed brass tabernacles. "
+        "Each bears a mysterious symbol of fate. You stand alone before them. Choose wisely, for what is locked inside "
+        "shall echo into the final phase... and speak of this to no living soul.\"*"
+    )
+    st.divider()
+
+    if "logged_in_player" not in st.session_state or st.session_state["logged_in_player"] not in state["players"]:
+        st.error("🔒 **AUTHENTICATION REQUIRED:** You must unlock your identity in the **Player Portal** tab or sidebar using your 4-digit PIN before entering the Hall of Destiny.")
+    else:
+        destiny_player = st.session_state["logged_in_player"]
+        p_status = str(state["players"][destiny_player].get("status", "Alive"))
+
+        if p_status not in ["Alive", "Undead"]:
+            st.warning("👻 Ghosts and departed souls have already crossed the veil. Your destiny is already sealed.")
+        else:
+            st.success(f"🗝️ Walking the Hall as: **{destiny_player}**")
+            
+            symbols = [
+                "⏳ Hourglass", "🗝️ Skeleton Key", "🗡️ Executioner Blade", "🥀 Wilted Rose", 
+                "🐺 Grey Wolf", "👁️ All-Seeing Eye", "📜 Tattered Scroll", "🕯️ Dying Candle", 
+                "🐍 Serpent Knot", "⚖️ Cracked Scales", "🔮 Crystal Orb", "🩸 Bleeding Heart", 
+                "👑 Iron Crown", "🗝️ Rusted Gate", "🦇 Midnight Bat", "🪞 Shattered Mirror", 
+                "⚙️ Clockwork Gear", "⚓ Heavy Anchor", "🌙 Eclipse Moon", "⚡ Storm Lightning", "🛡️ Broken Shield"
+            ]
+            
+            destiny_choices = state.setdefault("hall_of_destiny_choices", {})
+            already_chosen_symbol = destiny_choices.get(destiny_player)
+
+            if already_chosen_symbol:
+                st.markdown(f"""
+                <div class="player-card" style="background: #ebdccb; border: 2px solid #5c1d1d; padding: 25px;">
+                    <h3>🔒 Your Destiny is Sealed</h3>
+                    <p>You have already chosen your sealed vessel bearing the symbol: <b>{already_chosen_symbol}</b>.</p>
+                    <p><i>The mists whisper an absolute command: <b>Do not speak of your symbol to anyone.</b> Return to the Great Hall.</i></p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("### Choose Your Sealed Vessel (Select One Symbol):")
+                st.caption("Each envelope reads **[STICK / FLIP]** upon inspection. Select your vessel to reveal your fate.")
+
+                cols_grid = st.columns(3)
+                chosen_click = None
+
+                for idx, sym in enumerate(symbols):
+                    col = cols_grid[idx % 3]
+                    with col:
+                        envelope_label = f"envelope\n[STICK / FLIP]\n\n{sym}"
+                        if col.button(envelope_label, key=f"destiny_env_{idx}", use_container_width=True):
+                            chosen_click = sym
+
+                if chosen_click:
+                    destiny_choices[destiny_player] = chosen_click
+                    save_state(state)
+
+                    with st.spinner("🔮 The ancient machinery grinds into motion... Unsealing fate..."):
+                        placeholder = st.empty()
+                        for _ in range(6):
+                            placeholder.markdown("<h2 style='text-align: center; color: #b30000;'>FLIP...</h2>", unsafe_allow_html=True)
+                            time.sleep(0.2)
+                            placeholder.markdown("<h2 style='text-align: center; color: #c5a059;'>STICK...</h2>", unsafe_allow_html=True)
+                            time.sleep(0.2)
+                        
+                        placeholder.markdown("<h1 style='text-align: center; color: #5c1d1d;'>✨ STICK ✨</h1>", unsafe_allow_html=True)
+                        time.sleep(1)
+
+                    st.success(f"✅ You have claimed {chosen_click}. Your choice is locked forever.")
+                    st.balloons()
+                    st.rerun()
+
+# ==========================================
+# TAB 9: HOST CONTROL CENTRE
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
     st.title("👑 Neilio's High Host Sanctuary")
@@ -1149,6 +1199,28 @@ elif nav == "👑 Host Control (Neilio)":
     if host_pin_input == HOST_PIN:
         st.success("Sanctuary unlocked.")
         
+        # --- HOST PORTAL TESTING SUITE ---
+        st.markdown("---")
+        st.subheader("🕵️ Host Portal Testing Suite (Hidden Preview)")
+        st.markdown("Select any player below to temporarily override your session and view/test their portal interface as expected.")
+        
+        with st.form("host_portal_test_form"):
+            test_player_target = st.selectbox("Select Player to Preview Portal As:", list(state["players"].keys()), key="host_test_player_sel")
+            if st.form_submit_button("🗝️ Enter Player Portal (Test Mode)"):
+                st.session_state["logged_in_player"] = test_player_target
+                st.success(f"✅ Portal session overridden. You are now testing as **{test_player_target}**! Head to the Player Portal tab.")
+                st.rerun()
+
+        # --- HALL OF DESTINY SIDEBAR TOGGLE ---
+        st.markdown("---")
+        st.subheader("🔮 Hall of Secret Destiny Controls")
+        state["hall_of_destiny_enabled"] = st.toggle(
+            "🔮 Expose 'The Hall of Secret Destiny' in Sidebar",
+            value=state.get("hall_of_destiny_enabled", False),
+            key="host_toggle_hall_of_destiny"
+        )
+        save_state(state)
+
         # --- HOST ITEM TRANSFER / REALLOCATION DESK ---
         st.markdown("---")
         st.subheader("🔄 Host Item & Relic Transfer Desk")
@@ -1199,7 +1271,6 @@ elif nav == "👑 Host Control (Neilio)":
                     else:
                         st.error("Item could not be located in source inventory.")
 
-        # --- HOST RELIC & SPECIAL ITEM ALLOCATOR ---
         st.markdown("---")
         st.subheader("🛡️ Host Relic & Special Item Allocator")
         st.markdown("Manually assign shields, brooches, or game-changing relics directly to any player's inventory or active armor status.")
@@ -1238,7 +1309,6 @@ elif nav == "👑 Host Control (Neilio)":
                 st.success(f"✅ Successfully granted **{assigned_desc}** to **{target_player}**!")
                 st.rerun()
 
-        # --- HOST AUDIO SOUNDBOARD ---
         st.markdown("---")
         st.subheader("🎶 Host Dramatic Soundboard & Audio Library")
         song_uploader = st.file_uploader("Upload New MP3 Song", type=["mp3"], key="host_audio_uploader")
@@ -1300,7 +1370,6 @@ elif nav == "👑 Host Control (Neilio)":
                 st.success("🎲 Armoury boxes successfully randomised!")
                 st.rerun()
 
-        # --- HOST ARMOURY RIDDLE EDITOR ---
         st.markdown("---")
         st.subheader("🧩 Host Armoury Daily Riddle Editor")
         riddle_day_sel = st.selectbox("Select Day to Edit Armoury Riddle:", [f"Day {i}" for i in range(1, 13)], index=state["current_day"] - 1, key="host_riddle_day_sel")
@@ -1390,7 +1459,6 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
         st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
         
-        # --- HOST NON-VOTER SELECTION TOOL ---
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         current_non_voters = state.setdefault("non_voters", {}).setdefault(day_key, [])
         valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
@@ -1426,18 +1494,15 @@ elif nav == "👑 Host Control (Neilio)":
             st.info("Voting ended.")
             st.rerun()
 
-        # --- LIVE HOST SAVE TALLY & VOTE RESET CONTROLS ---
         st.markdown("---")
         st.subheader(f"📊 Live Host Save Tally & Vote Reset ({day_key})")
         pub_exec_votes = state["public_execution"].setdefault(day_key, {})
         
-        # Tally strictly counts votes for the prisoners (non-voters)
         host_tally = {p: 0 for p in current_non_voters}
         
         if pub_exec_votes:
             st.markdown("**Cast Save Votes (Inspect & Reset individual errors):**")
             for voter_name, saved_target in list(pub_exec_votes.items()):
-                # Remove votes if voter became a prisoner or target is invalid
                 if voter_name in current_non_voters or saved_target not in current_non_voters:
                     del pub_exec_votes[voter_name]
                     save_state(state)
@@ -1475,7 +1540,6 @@ elif nav == "👑 Host Control (Neilio)":
                 save_state(state)
                 st.error(f"👻 **GHOST SENTENCE!** With the fewest save votes, **{lowest_two[0]}** and **{lowest_two[1]}** have been condemned and eliminated from the Castle!")
 
-        # --- HOST CHAT LOCK TOGGLE ---
         st.markdown("---")
         st.subheader("💬 Round Table Chat Control")
         state["chat_locked"] = st.toggle("🔒 Lock Round Table Chat Room (Suspend Messages)", value=state.get("chat_locked", False), key="host_chat_lock_toggle")
