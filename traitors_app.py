@@ -953,7 +953,8 @@ elif nav == "💬 Round Table Live Chat":
 elif nav == "💀 Public Execution Room":
     st.title("💀 The Public Execution Chamber — Save & Sentence")
     st.markdown(
-        "> *\"The castle gates have sealed. You must log in through your Player Portal to cast your vote to **SAVE ONE SOUL** from the gallows. "
+        "> *\"The castle gates have sealed. Those sent to the execution chamber cannot save themselves or each other. "
+        "You must log in through your Player Portal to cast your vote to **SAVE ONE SOUL** outside the chamber. "
         "When the votes are tallied, the two players with the fewest save votes will be condemned and eliminated!\"*"
     )
 
@@ -971,20 +972,29 @@ elif nav == "💀 Public Execution Room":
             st.error("👻 Ghosts and eliminated souls cannot cast save votes!")
         else:
             manual_non_voters = state["non_voters"].get(day_key, [])
+            
+            # --- RESTRICTION CHECK: Non-voters cannot vote, and cannot save themselves or each other ---
             if exec_voter in manual_non_voters:
                 st.error("⚠️ **EXECUTION CHAMBER RESTRICTION:** Because you failed to cast your Round Table vote, you are locked inside the execution chamber and **cannot** cast a save vote!")
             else:
                 st.success(f"🔑 Casting save vote as: **{exec_voter}**")
                 alive_players = [n for n, d in state["players"].items() if str(d.get("status", "Alive")) in ["Alive", "Undead"]]
+                
+                # Exclude self and anyone else currently in the execution chamber (non-voters) from being save targets
+                saveable_targets = [p for p in alive_players if p != exec_voter and p not in manual_non_voters]
+                
                 pub_exec_votes = state["public_execution"].setdefault(day_key, {})
 
-                with st.form("public_execution_form"):
-                    save_target = st.selectbox("Select ONE player you wish to SAVE:", alive_players, key="save_target_select")
-                    exec_submit = st.form_submit_button("Cast Save Vote 🛡️")
-                    if exec_submit:
-                        pub_exec_votes[exec_voter] = save_target
-                        save_state(state)
-                        st.success(f"✅ Your vote to SAVE **{save_target}** has been recorded!")
+                if not saveable_targets:
+                    st.warning("⚠️ There are no eligible players outside the execution chamber left to save!")
+                else:
+                    with st.form("public_execution_form"):
+                        save_target = st.selectbox("Select ONE player you wish to SAVE (cannot be yourself or another prisoner):", saveable_targets, key="save_target_select")
+                        exec_submit = st.form_submit_button("Cast Save Vote 🛡️")
+                        if exec_submit:
+                            pub_exec_votes[exec_voter] = save_target
+                            save_state(state)
+                            st.success(f"✅ Your vote to SAVE **{save_target}** has been recorded!")
 
                 st.markdown("---")
                 st.subheader("📊 Live Save Tally Board")
@@ -1382,14 +1392,14 @@ elif nav == "👑 Host Control (Neilio)":
         st.markdown("---")
         st.subheader("🕹️ Host Voting Phase & Non-Voter Controls")
         
-        # --- RESTORED NON-VOTER SELECTION TOOL ---
+        # --- HOST NON-VOTER SELECTION TOOL ---
         alive_names = [n for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]]
         current_non_voters = state["non_voters"].setdefault(day_key, [])
         valid_default_non_voters = [n for n in current_non_voters if n in alive_names]
 
         with st.form("host_non_voters_form"):
             selected_non_voters = st.multiselect(
-                f"Select players who failed to vote at Round Table ({day_key}):",
+                f"Select players who failed to vote at Round Table ({day_key}) (sent to Execution Chamber):",
                 options=alive_names,
                 default=valid_default_non_voters,
                 key="host_non_voters_multiselect"
