@@ -273,12 +273,23 @@ PHASES = [
     "🏆 The Grand Reveal (Finale)"
 ]
 
+INDIVIDUAL_RIDDLES = {
+    "Alice": "Count the letters in 'Alice', add the number of starting Traitors (3), and finish with the number of corners on a triangle.",
+    "Carla": "Count the letters in your name, add the starting Traitors (3), and look to your safety deposit box row count.",
+    "Clare": "Take the position of 'C' in the alphabet (3), add your surviving days, and align the final gear to match.",
+    "Dawn": "Double the syllables of your name (1), count the letters in 'DAWN', and check the daily execution save count.",
+    "Justine": "Count the vowels in your name, add the remaining days to the finale, and align the final tumbler.",
+    "Mariyam": "Take half the letters in 'Mariyam', add active wall shields, and turn the brass gears.",
+    "Pavan": "Count the letters in your name, check the vault row count, and spin the cogs into place.",
+    "Pilar": "Subtract two from the letters in 'Pilar', match your secret tally, and unseal your envelope."
+}
+
 def get_default_state():
     default_players = {}
     for i in range(1, 21):
         name = f"Player {i:02d}"
         random_pin = str(random.randint(1000, 9999))
-        random_destiny_pin = str(random.randint(100, 999))
+        random_destiny_pin = f"{random.randint(0,9)}{random.randint(0,9)}{random.randint(0,9)}"
         default_players[name] = {
             "pin": random_pin,
             "destiny_pin": random_destiny_pin,
@@ -469,7 +480,7 @@ def load_state():
     for name, p in state_dict.get("players", {}).items():
         p["role"] = str(p.get("role", "Faithful"))
         p["status"] = str(p.get("status", "Alive"))
-        p.setdefault("destiny_pin", str(random.randint(100, 999)))
+        p.setdefault("destiny_pin", f"{random.randint(0,9)}{random.randint(0,9)}{random.randint(0,9)}")
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
         p.setdefault("photo", "")
@@ -817,21 +828,26 @@ st.sidebar.metric("🟢 Survivors", f"{alive_count} / {len(state['players'])}")
 st.sidebar.metric("🏆 Prize Pot", f"{state['prize_pot']} pts")
 
 st.sidebar.divider()
+
+# Logical reordered sidebar flow
 nav_options = [
     "🏰 Castle Hall (Public)",
     "💬 Round Table Live Chat",
-    "💀 Public Execution Room",
     "🗳️ Player Portal (Vote & Role)",
     "💍 Chamber of Relics",
-    "📊 The Voting Matrix",
-    "🏆 The Grand Reveal (4PM Finale)",
+    "💀 Public Execution Room",
 ]
 
 # Conditionally append The Hall of Secret Destiny if activated by Host Neilio
 if state.get("hall_of_destiny_enabled", False):
-    nav_options.insert(4, "🔮 The Hall of Secret Destiny")
+    nav_options.append("🔮 The Hall of Secret Destiny")
 
-nav_options.append("👑 Host Control (Neilio)")
+nav_options.extend([
+    "📊 The Voting Matrix",
+    "🏆 The Grand Reveal (4PM Finale)",
+    "👑 Host Control (Neilio)"
+])
+
 nav = st.sidebar.radio("Navigate", nav_options)
 
 # ==========================================
@@ -927,7 +943,118 @@ elif nav == "💬 Round Table Live Chat":
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# TAB 3: PUBLIC EXECUTION ROOM
+# TAB 3: PLAYER PORTAL
+# ==========================================
+elif nav == "🗳️ Player Portal (Vote & Role)":
+    st.title("🗝️ The Secret Chamber Portal")
+    
+    if not state.get("castle_gates_open", True):
+        st.error("🏰 **THE CASTLE GATES ARE CURRENTLY CLOSED!**")
+        st.warning("High Host Neilio has barred entry to the player portals. Stand by in the Great Hall until the gates are reopened.")
+    else:
+        if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
+            selected_player = st.session_state["logged_in_player"]
+            st.success(f"🔓 Authenticated in the shadows as **{selected_player}**.")
+            
+            if st.button("🔒 Lock Portal & Switch User"):
+                del st.session_state["logged_in_player"]
+                st.rerun()
+
+            with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
+                uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
+                if uploaded_file is not None:
+                    state["players"][selected_player]["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
+                    save_state(state)
+                    st.success("✨ Portrait updated!")
+                    st.rerun()
+                if state["players"][selected_player].get("photo"): 
+                    st.image(state["players"][selected_player]["photo"], width=100)
+
+            render_player_portal_view(selected_player)
+        else:
+            st.markdown("### 🗝️ Gatekeeper's Challenge")
+            st.markdown(
+                "> *\"I have no tongue, yet I speak your name;*<br>"
+                "> *I have no shadow, yet I bear your shame.*<br>"
+                "> *To cross the threshold where the shadows thin,*<br>"
+                "> *What four-digit key unlocks the gloom within?\"*"
+            )
+            st.caption("Select your name and enter your personal PIN below to unlock your portal session.")
+            
+            col1, col2 = st.columns(2)
+            login_player = col1.selectbox("Select Your Name", list(state["players"].keys()), key="login_player_select")
+            entered_pin = col2.text_input("Enter Portal PIN", type="password", key="login_pin_input")
+
+            if st.button("Unlock Portal 🗝️", key="unlock_portal_btn"):
+                p_info = state["players"][login_player]
+                if entered_pin and entered_pin == str(p_info.get("pin", "")):
+                    st.session_state["logged_in_player"] = login_player
+                    login_entry = {"player": login_player, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "day": day_key}
+                    state.setdefault("login_history", []).append(login_entry)
+                    save_state(state)
+                    send_login_alert(login_player)
+                    st.success(f"Welcome back, {login_player}!")
+                    st.rerun()
+                else:
+                    st.error("❌ Incorrect PIN.")
+
+# ==========================================
+# TAB 4: CHAMBER OF RELICS
+# ==========================================
+elif nav == "💍 Chamber of Relics":
+    st.title("💍 The Alchemist's Chamber of Relics")
+    if state.get("chamber_of_relics_locked", True):
+        st.warning("🔒 **THE CHAMBER OF RELICS IS SEALED!**")
+    elif "logged_in_player" not in st.session_state or st.session_state["logged_in_player"] not in state["players"]:
+        st.error("🔒 **PORTAL LOCKED:** You must log into your Player Portal using your 4-digit PIN before you can enter the Chamber of Relics!")
+    else:
+        r_player = st.session_state["logged_in_player"]
+        st.success(f"🔑 Authenticated in the Chamber as: **{r_player}**")
+
+        p_dat = state["players"][r_player]
+        relics_contents = state["relics_vault_contents"]
+        if not relics_contents:
+            state["relics_vault_contents"] = initialize_relics_boxes()
+            save_state(state)
+            relics_contents = state["relics_vault_contents"]
+        solved_dict = state.setdefault("relics_riddle_solved", {}).setdefault(r_player, {})
+        for b_key, b_info in relics_contents.items():
+            if b_info["opened"]:
+                st.markdown(f'<div class="player-card" style="opacity: 0.7;"><b>{b_key} (Claimed)</b>: {b_info["name"]} by {b_info["opened_by"]}</div>', unsafe_allow_html=True)
+            else:
+                with st.container(border=True):
+                    st.markdown(f"**{b_key}**\n> *\"{b_info['clue']}\"*")
+                    if not solved_dict.get(b_key, False):
+                        with st.form(f"solve_{r_player}_{b_key}"):
+                            ans = st.text_input("Name Keyword:", key=f"relic_ans_{r_player}_{b_key}")
+                            if st.form_submit_button("Test Lock 🗝️"):
+                                if any(c in ans.strip().lower() for c in state["relics_config"]["riddles"][b_key]["answer"].split(",")):
+                                    solved_dict[b_key] = True
+                                    save_state(state)
+                                    st.success("🔓 Unlocked!")
+                                    st.rerun()
+                                else: st.error("❌ Incorrect.")
+                    else:
+                        if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
+                            b_info["opened"] = True
+                            b_info["opened_by"] = r_player
+                            item_found_desc = b_info['name']
+                            state["players"][r_player].setdefault("claimed_items", []).append({
+                                "day": "Chamber of Relics", "box": b_key, "desc": item_found_desc, "time": datetime.now().strftime("%H:%M")
+                            })
+                            state.setdefault("host_item_audit", []).append({
+                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "player": r_player,
+                                "source": f"Chamber of Relics ({b_key})",
+                                "item": item_found_desc
+                            })
+                            save_state(state)
+                            st.balloons()
+                            st.success("🎉 Claimed!")
+                            st.rerun()
+
+# ==========================================
+# TAB 5: PUBLIC EXECUTION ROOM
 # ==========================================
 elif nav == "💀 Public Execution Room":
     st.title("💀 The Public Execution Chamber — Save & Sentence")
@@ -987,147 +1114,7 @@ elif nav == "💀 Public Execution Room":
                     st.info("No save votes cast yet.")
 
 # ==========================================
-# TAB 4: PLAYER PORTAL
-# ==========================================
-elif nav == "🗳️ Player Portal (Vote & Role)":
-    st.title("🗝️ The Secret Chamber Portal")
-    
-    if not state.get("castle_gates_open", True):
-        st.error("🏰 **THE CASTLE GATES ARE CURRENTLY CLOSED!**")
-        st.warning("High Host Neilio has barred entry to the player portals. Stand by in the Great Hall until the gates are reopened.")
-    else:
-        if "logged_in_player" in st.session_state and st.session_state["logged_in_player"] in state["players"]:
-            selected_player = st.session_state["logged_in_player"]
-            st.success(f"🔓 Authenticated in the shadows as **{selected_player}**.")
-            
-            if st.button("🔒 Lock Portal & Switch User"):
-                del st.session_state["logged_in_player"]
-                st.rerun()
-
-            with st.expander("📸 Upload or Update Your Profile Photo", expanded=False):
-                uploaded_file = st.file_uploader("Choose a photo (JPEG/PNG)", type=["jpg", "jpeg", "png"])
-                if uploaded_file is not None:
-                    state["players"][selected_player]["photo"] = f"data:image/jpeg;base64,{base64.b64encode(uploaded_file.getvalue()).decode('utf-8')}"
-                    save_state(state)
-                    st.success("✨ Portrait updated!")
-                    st.rerun()
-                if state["players"][selected_player].get("photo"): 
-                    st.image(state["players"][selected_player]["photo"], width=100)
-
-            render_player_portal_view(selected_player)
-        else:
-            st.markdown("### 🗝️ Gatekeeper's Challenge")
-            st.markdown(
-                "> *\"I have no tongue, yet I speak your name;*<br>"
-                "> *I have no shadow, yet I bear your shame.*<br>"
-                "> *To cross the threshold where the shadows thin,*<br>"
-                "> *What four-digit key unlocks the gloom within?\"*"
-            )
-            st.caption("Select your name and enter your personal PIN below to unlock your portal session.")
-            
-            col1, col2 = st.columns(2)
-            login_player = col1.selectbox("Select Your Name", list(state["players"].keys()), key="login_player_select")
-            entered_pin = col2.text_input("Enter Portal PIN", type="password", key="login_pin_input")
-
-            if st.button("Unlock Portal 🗝️", key="unlock_portal_btn"):
-                p_info = state["players"][login_player]
-                if entered_pin and entered_pin == str(p_info.get("pin", "")):
-                    st.session_state["logged_in_player"] = login_player
-                    login_entry = {"player": login_player, "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "day": day_key}
-                    state.setdefault("login_history", []).append(login_entry)
-                    save_state(state)
-                    send_login_alert(login_player)
-                    st.success(f"Welcome back, {login_player}!")
-                    st.rerun()
-                else:
-                    st.error("❌ Incorrect PIN.")
-
-# ==========================================
-# TAB 5: CHAMBER OF RELICS
-# ==========================================
-elif nav == "💍 Chamber of Relics":
-    st.title("💍 The Alchemist's Chamber of Relics")
-    if state.get("chamber_of_relics_locked", True):
-        st.warning("🔒 **THE CHAMBER OF RELICS IS SEALED!**")
-    elif "logged_in_player" not in st.session_state or st.session_state["logged_in_player"] not in state["players"]:
-        st.error("🔒 **PORTAL LOCKED:** You must log into your Player Portal using your 4-digit PIN before you can enter the Chamber of Relics!")
-    else:
-        r_player = st.session_state["logged_in_player"]
-        st.success(f"🔑 Authenticated in the Chamber as: **{r_player}**")
-
-        p_dat = state["players"][r_player]
-        relics_contents = state["relics_vault_contents"]
-        if not relics_contents:
-            state["relics_vault_contents"] = initialize_relics_boxes()
-            save_state(state)
-            relics_contents = state["relics_vault_contents"]
-        solved_dict = state.setdefault("relics_riddle_solved", {}).setdefault(r_player, {})
-        for b_key, b_info in relics_contents.items():
-            if b_info["opened"]:
-                st.markdown(f'<div class="player-card" style="opacity: 0.7;"><b>{b_key} (Claimed)</b>: {b_info["name"]} by {b_info["opened_by"]}</div>', unsafe_allow_html=True)
-            else:
-                with st.container(border=True):
-                    st.markdown(f"**{b_key}**\n> *\"{b_info['clue']}\"*")
-                    if not solved_dict.get(b_key, False):
-                        with st.form(f"solve_{r_player}_{b_key}"):
-                            ans = st.text_input("Name Keyword:", key=f"relic_ans_{r_player}_{b_key}")
-                            if st.form_submit_button("Test Lock 🗝️"):
-                                if any(c in ans.strip().lower() for c in state["relics_config"]["riddles"][b_key]["answer"].split(",")):
-                                    solved_dict[b_key] = True
-                                    save_state(state)
-                                    st.success("🔓 Unlocked!")
-                                    st.rerun()
-                                else: st.error("❌ Incorrect.")
-                    else:
-                        if st.button(f"Claim {b_info['name']} 🎁", key=f"claim_{r_player}_{b_key}"):
-                            b_info["opened"] = True
-                            b_info["opened_by"] = r_player
-                            item_found_desc = b_info['name']
-                            state["players"][r_player].setdefault("claimed_items", []).append({
-                                "day": "Chamber of Relics", "box": b_key, "desc": item_found_desc, "time": datetime.now().strftime("%H:%M")
-                            })
-                            state.setdefault("host_item_audit", []).append({
-                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                "player": r_player,
-                                "source": f"Chamber of Relics ({b_key})",
-                                "item": item_found_desc
-                            })
-                            save_state(state)
-                            st.balloons()
-                            st.success("🎉 Claimed!")
-                            st.rerun()
-
-# ==========================================
-# TAB 6: VOTING MATRIX
-# ==========================================
-elif nav == "📊 The Voting Matrix":
-    st.title("📊 The Castle Archives: Voting Matrix")
-    if not state.get("voting_matrix_unlocked", False):
-        st.warning("🔒 **THE CASTLE ARCHIVES ARE SEALED!**")
-    else:
-        rows = []
-        for name, pdata in state["players"].items():
-            rows.append({"Player": name, "Status": pdata.get("status"), "Points": pdata.get("points")})
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-# ==========================================
-# TAB 7: THE GRAND REVEAL (FINALE)
-# ==========================================
-elif nav == "🏆 The Grand Reveal (4PM Finale)":
-    st.title("🏆 The Grand Finale & Ultimate Reveal")
-    if not is_finale_unlocked:
-        st.warning("🔒 **THE GRAND REVEAL CHAMBER IS SEALED!**")
-    else:
-        survivors = {n: d for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]}
-        if any("Traitor" in str(d.get("role", "")) for d in survivors.values()):
-            st.snow()
-            st.markdown('<div class="finale-banner-traitor"><h1>🗡️ TRAITORS WIN! 🗡️</h1></div>', unsafe_allow_html=True)
-        else:
-            st.balloons()
-            st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
-
-# ==========================================
-# TAB 8: THE HALL OF SECRET DESTINY
+# TAB 6: THE HALL OF SECRET DESTINY (WITH THREE-COG PUZZLE)
 # ==========================================
 elif nav == "🔮 The Hall of Secret Destiny":
     st.title("🔮 The Hall of Secret Destiny")
@@ -1145,22 +1132,45 @@ elif nav == "🔮 The Hall of Secret Destiny":
         p_data = state["players"][destiny_player]
         p_status = str(p_data.get("status", "Alive"))
 
+        # STRICT RULE CHECK: Banished, murdered, or executed players cannot access the castle at this point
         if p_status not in ["Alive", "Undead"]:
             st.error("💀 **DENIED ACCESS:** The heavy iron portcullis remains bolted shut. Banished, murdered, and executed souls cannot cross the veil into the Hall of Destiny.")
         else:
+            # Check if this active player has unlocked their Hall session using the Three-Cog puzzle
             if st.session_state.get("destiny_unlocked_player") != destiny_player:
-                st.markdown("### 🗝️ Enter Your Hall of Destiny PIN")
-                st.caption(f"Welcome, **{destiny_player}**. Enter your separate 3-digit Hall PIN to step up to the tabernacles.")
-                
-                with st.form("destiny_pin_gate_form"):
-                    entered_d_pin = st.text_input("Hall of Destiny PIN", type="password", key="destiny_pin_input_field")
-                    if st.form_submit_button("Unlock Chamber 🗝️"):
-                        if entered_d_pin and entered_d_pin == str(p_data.get("destiny_pin", "")):
+                st.markdown("### ⚙️ The Three Cogs of Destiny")
+                st.markdown(
+                    "> *\"To touch the tabernacle and claim your sealed symbol, you must align the three brass cogs. "
+                    "Turn each gear to match the digits of your secret passage code.\"*"
+                )
+
+                # Fetch bespoke or default player riddle
+                player_riddle = INDIVIDUAL_RIDDLES.get(destiny_player, "Align the three brass cogs to match your secret 3-digit destination PIN.")
+                st.markdown(f"**🧩 Riddle for {destiny_player}:**\n> *\"{player_riddle}\"*")
+
+                correct_pin = str(p_data.get("destiny_pin", "123"))
+                c1_target = int(correct_pin[0])
+                c2_target = int(correct_pin[1])
+                c3_target = int(correct_pin[2])
+
+                with st.form("cog_puzzle_form"):
+                    st.markdown("#### Spin the Cogs (0 through 9):")
+                    col_cog1, col_cog2, col_cog3 = st.columns(3)
+                    
+                    cog_l = col_cog1.slider("⚙️ Left Cog", 0, 9, 0, key="cog_left")
+                    cog_m = col_cog2.slider("⚙️ Middle Cog", 0, 9, 0, key="cog_mid")
+                    cog_r = col_cog3.slider("⚙️ Right Cog", 0, 9, 0, key="cog_right")
+                    
+                    submitted_cogs = st.form_submit_button("Engage Cogs 🗝️")
+                    
+                    if submitted_cogs:
+                        user_attempt = f"{cog_l}{cog_m}{cog_r}"
+                        if user_attempt == correct_pin:
                             st.session_state["destiny_unlocked_player"] = destiny_player
-                            st.success("🔓 The iron locks click open...")
+                            st.success("⚙️ *CLACK-CLACK-CLICK.* The brass gears lock into place! The iron latch opens.")
                             st.rerun()
                         else:
-                            st.error("❌ Incorrect Hall PIN. Speak with Host Neilio if you have forgotten your passage code.")
+                            st.error("⚙️ The cogs grind harshly against each other and lock. That is not the correct alignment!")
             else:
                 st.success(f"🗝️ Authenticated in the Hall as: **{destiny_player}**")
                 
@@ -1217,6 +1227,35 @@ elif nav == "🔮 The Hall of Secret Destiny":
                         st.rerun()
 
 # ==========================================
+# TAB 7: THE VOTING MATRIX
+# ==========================================
+elif nav == "📊 The Voting Matrix":
+    st.title("📊 The Castle Archives: Voting Matrix")
+    if not state.get("voting_matrix_unlocked", False):
+        st.warning("🔒 **THE CASTLE ARCHIVES ARE SEALED!**")
+    else:
+        rows = []
+        for name, pdata in state["players"].items():
+            rows.append({"Player": name, "Status": pdata.get("status"), "Points": pdata.get("points")})
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+# ==========================================
+# TAB 8: THE GRAND REVEAL (FINALE)
+# ==========================================
+elif nav == "🏆 The Grand Reveal (4PM Finale)":
+    st.title("🏆 The Grand Finale & Ultimate Reveal")
+    if not is_finale_unlocked:
+        st.warning("🔒 **THE GRAND REVEAL CHAMBER IS SEALED!**")
+    else:
+        survivors = {n: d for n, d in state["players"].items() if str(d.get("status", "")) in ["Alive", "Undead"]}
+        if any("Traitor" in str(d.get("role", "")) for d in survivors.values()):
+            st.snow()
+            st.markdown('<div class="finale-banner-traitor"><h1>🗡️ TRAITORS WIN! 🗡️</h1></div>', unsafe_allow_html=True)
+        else:
+            st.balloons()
+            st.markdown('<div class="finale-banner-faithful"><h1>🕯️ FAITHFULS WIN! 🕯️</h1></div>', unsafe_allow_html=True)
+
+# ==========================================
 # TAB 9: HOST CONTROL CENTRE
 # ==========================================
 elif nav == "👑 Host Control (Neilio)":
@@ -1249,7 +1288,7 @@ elif nav == "👑 Host Control (Neilio)":
 
         # --- HOST DESTINY PIN MANAGEMENT DESK ---
         st.markdown("---")
-        st.subheader("🗝️ Host Hall of Destiny PIN Manager")
+        st.subheader("🗝️ Host Hall of Destiny Cog PIN Manager")
         st.caption("Inspect or reset individual 3-digit Hall PINs for active players.")
         
         destiny_pin_rows = []
@@ -1257,17 +1296,17 @@ elif nav == "👑 Host Control (Neilio)":
             destiny_pin_rows.append({
                 "Player": p_name,
                 "Status": p_dat.get("status"),
-                "Hall PIN": p_dat.get("destiny_pin", "123")
+                "Cog PIN": p_dat.get("destiny_pin", "123")
             })
         
         edited_dpins_df = st.data_editor(pd.DataFrame(destiny_pin_rows), use_container_width=True, hide_index=True, key="host_dpins_editor")
-        if st.button("💾 Save Hall PIN Updates", key="host_save_dpins_btn"):
+        if st.button("💾 Save Cog PIN Updates", key="host_save_dpins_btn"):
             for _, row in edited_dpins_df.iterrows():
                 p_n = row["Player"]
                 if p_n in state["players"]:
-                    state["players"][p_n]["destiny_pin"] = str(row["Hall PIN"])
+                    state["players"][p_n]["destiny_pin"] = str(row["Cog PIN"])
             save_state(state)
-            st.success("✅ Hall of Destiny PINs successfully updated!")
+            st.success("✅ Hall of Destiny Cog PINs successfully updated!")
             st.rerun()
 
         # --- HOST ITEM TRANSFER / REALLOCATION DESK ---
