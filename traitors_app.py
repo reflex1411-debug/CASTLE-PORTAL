@@ -278,8 +278,10 @@ def get_default_state():
     for i in range(1, 21):
         name = f"Player {i:02d}"
         random_pin = str(random.randint(1000, 9999))
+        random_destiny_pin = str(random.randint(100, 999))
         default_players[name] = {
             "pin": random_pin,
+            "destiny_pin": random_destiny_pin,
             "role": "Faithful",
             "status": "Alive",
             "eliminated_day": "",
@@ -464,9 +466,10 @@ def load_state():
     state_dict.setdefault("hall_of_destiny_enabled", False)
     state_dict.setdefault("hall_of_destiny_choices", {})
 
-    for p in state_dict.get("players", {}).values():
+    for name, p in state_dict.get("players", {}).items():
         p["role"] = str(p.get("role", "Faithful"))
         p["status"] = str(p.get("status", "Alive"))
+        p.setdefault("destiny_pin", str(random.randint(100, 999)))
         p.setdefault("hide_role", False)
         p.setdefault("public_shield", False)
         p.setdefault("photo", "")
@@ -1013,10 +1016,18 @@ elif nav == "🗳️ Player Portal (Vote & Role)":
 
             render_player_portal_view(selected_player)
         else:
-            st.caption("Select your name and enter your personal 4-digit PIN to unlock your portal session.")
+            st.markdown("### 🗝️ Gatekeeper's Challenge")
+            st.markdown(
+                "> *\"I have no tongue, yet I speak your name;*<br>"
+                "> *I have no shadow, yet I bear your shame.*<br>"
+                "> *To cross the threshold where the shadows thin,*<br>"
+                "> *What four-digit key unlocks the gloom within?\"*"
+            )
+            st.caption("Select your name and enter your personal PIN below to unlock your portal session.")
+            
             col1, col2 = st.columns(2)
             login_player = col1.selectbox("Select Your Name", list(state["players"].keys()), key="login_player_select")
-            entered_pin = col2.text_input("Enter PIN", type="password", key="login_pin_input")
+            entered_pin = col2.text_input("Enter Portal PIN", type="password", key="login_pin_input")
 
             if st.button("Unlock Portal 🗝️", key="unlock_portal_btn"):
                 p_info = state["players"][login_player]
@@ -1131,64 +1142,79 @@ elif nav == "🔮 The Hall of Secret Destiny":
         st.error("🔒 **AUTHENTICATION REQUIRED:** You must unlock your identity in the **Player Portal** tab or sidebar using your 4-digit PIN before entering the Hall of Destiny.")
     else:
         destiny_player = st.session_state["logged_in_player"]
-        p_status = str(state["players"][destiny_player].get("status", "Alive"))
+        p_data = state["players"][destiny_player]
+        p_status = str(p_data.get("status", "Alive"))
 
         if p_status not in ["Alive", "Undead"]:
-            st.warning("👻 Ghosts and departed souls have already crossed the veil. Your destiny is already sealed.")
+            st.error("💀 **DENIED ACCESS:** The heavy iron portcullis remains bolted shut. Banished, murdered, and executed souls cannot cross the veil into the Hall of Destiny.")
         else:
-            st.success(f"🗝️ Walking the Hall as: **{destiny_player}**")
-            
-            symbols = [
-                "⏳ Hourglass", "🗝️ Skeleton Key", "🗡️ Executioner Blade", "🥀 Wilted Rose", 
-                "🐺 Grey Wolf", "👁️ All-Seeing Eye", "📜 Tattered Scroll", "🕯️ Dying Candle", 
-                "🐍 Serpent Knot", "⚖️ Cracked Scales", "🔮 Crystal Orb", "🩸 Bleeding Heart", 
-                "👑 Iron Crown", "🗝️ Rusted Gate", "🦇 Midnight Bat", "🪞 Shattered Mirror", 
-                "⚙️ Clockwork Gear", "⚓ Heavy Anchor", "🌙 Eclipse Moon", "⚡ Storm Lightning", "🛡️ Broken Shield"
-            ]
-            
-            destiny_choices = state.setdefault("hall_of_destiny_choices", {})
-            already_chosen_symbol = destiny_choices.get(destiny_player)
-
-            if already_chosen_symbol:
-                st.markdown(f"""
-                <div class="player-card" style="background: #ebdccb; border: 2px solid #5c1d1d; padding: 25px;">
-                    <h3>🔒 Your Destiny is Sealed</h3>
-                    <p>You have already chosen your sealed vessel bearing the symbol: <b>{already_chosen_symbol}</b>.</p>
-                    <p><i>The mists whisper an absolute command: <b>Do not speak of your symbol to anyone.</b> Return to the Great Hall.</i></p>
-                </div>
-                """, unsafe_allow_html=True)
+            if st.session_state.get("destiny_unlocked_player") != destiny_player:
+                st.markdown("### 🗝️ Enter Your Hall of Destiny PIN")
+                st.caption(f"Welcome, **{destiny_player}**. Enter your separate 3-digit Hall PIN to step up to the tabernacles.")
+                
+                with st.form("destiny_pin_gate_form"):
+                    entered_d_pin = st.text_input("Hall of Destiny PIN", type="password", key="destiny_pin_input_field")
+                    if st.form_submit_button("Unlock Chamber 🗝️"):
+                        if entered_d_pin and entered_d_pin == str(p_data.get("destiny_pin", "")):
+                            st.session_state["destiny_unlocked_player"] = destiny_player
+                            st.success("🔓 The iron locks click open...")
+                            st.rerun()
+                        else:
+                            st.error("❌ Incorrect Hall PIN. Speak with Host Neilio if you have forgotten your passage code.")
             else:
-                st.markdown("### Choose Your Sealed Vessel (Select One Symbol):")
-                st.caption("Each envelope reads **[STICK / FLIP]** upon inspection. Select your vessel to reveal your fate.")
+                st.success(f"🗝️ Authenticated in the Hall as: **{destiny_player}**")
+                
+                symbols = [
+                    "⏳ Hourglass", "🗝️ Skeleton Key", "🗡️ Executioner Blade", "🥀 Wilted Rose", 
+                    "🐺 Grey Wolf", "👁️ All-Seeing Eye", "📜 Tattered Scroll", "🕯️ Dying Candle", 
+                    "🐍 Serpent Knot", "⚖️ Cracked Scales", "🔮 Crystal Orb", "🩸 Bleeding Heart", 
+                    "👑 Iron Crown", "🗝️ Rusted Gate", "🦇 Midnight Bat", "🪞 Shattered Mirror", 
+                    "⚙️ Clockwork Gear", "⚓ Heavy Anchor", "🌙 Eclipse Moon", "⚡ Storm Lightning", "🛡️ Broken Shield"
+                ]
+                
+                destiny_choices = state.setdefault("hall_of_destiny_choices", {})
+                already_chosen_symbol = destiny_choices.get(destiny_player)
 
-                cols_grid = st.columns(3)
-                chosen_click = None
+                if already_chosen_symbol:
+                    st.markdown(f"""
+                    <div class="player-card" style="background: #ebdccb; border: 2px solid #5c1d1d; padding: 25px;">
+                        <h3>🔒 Your Destiny is Sealed</h3>
+                        <p>You have already chosen your sealed vessel bearing the symbol: <b>{already_chosen_symbol}</b>.</p>
+                        <p><i>The mists whisper an absolute command: <b>Do not speak of your symbol to anyone.</b> Return to the Great Hall.</i></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("### Choose Your Sealed Vessel (Select One Symbol):")
+                    st.caption("Each envelope reads **[STICK / FLIP]** upon inspection. Select your vessel to reveal your fate.")
 
-                for idx, sym in enumerate(symbols):
-                    col = cols_grid[idx % 3]
-                    with col:
-                        envelope_label = f"envelope\n[STICK / FLIP]\n\n{sym}"
-                        if col.button(envelope_label, key=f"destiny_env_{idx}", use_container_width=True):
-                            chosen_click = sym
+                    cols_grid = st.columns(3)
+                    chosen_click = None
 
-                if chosen_click:
-                    destiny_choices[destiny_player] = chosen_click
-                    save_state(state)
+                    for idx, sym in enumerate(symbols):
+                        col = cols_grid[idx % 3]
+                        with col:
+                            envelope_label = f"envelope\n[STICK / FLIP]\n\n{sym}"
+                            if col.button(envelope_label, key=f"destiny_env_{idx}", use_container_width=True):
+                                chosen_click = sym
 
-                    with st.spinner("🔮 The ancient machinery grinds into motion... Unsealing fate..."):
-                        placeholder = st.empty()
-                        for _ in range(6):
-                            placeholder.markdown("<h2 style='text-align: center; color: #b30000;'>FLIP...</h2>", unsafe_allow_html=True)
-                            time.sleep(0.2)
-                            placeholder.markdown("<h2 style='text-align: center; color: #c5a059;'>STICK...</h2>", unsafe_allow_html=True)
-                            time.sleep(0.2)
-                        
-                        placeholder.markdown("<h1 style='text-align: center; color: #5c1d1d;'>✨ STICK ✨</h1>", unsafe_allow_html=True)
-                        time.sleep(1)
+                    if chosen_click:
+                        destiny_choices[destiny_player] = chosen_click
+                        save_state(state)
 
-                    st.success(f"✅ You have claimed {chosen_click}. Your choice is locked forever.")
-                    st.balloons()
-                    st.rerun()
+                        with st.spinner("🔮 The ancient machinery grinds into motion... Unsealing fate..."):
+                            placeholder = st.empty()
+                            for _ in range(6):
+                                placeholder.markdown("<h2 style='text-align: center; color: #b30000;'>FLIP...</h2>", unsafe_allow_html=True)
+                                time.sleep(0.2)
+                                placeholder.markdown("<h2 style='text-align: center; color: #c5a059;'>STICK...</h2>", unsafe_allow_html=True)
+                                time.sleep(0.2)
+                            
+                            placeholder.markdown("<h1 style='text-align: center; color: #5c1d1d;'>✨ STICK ✨</h1>", unsafe_allow_html=True)
+                            time.sleep(1)
+
+                        st.success(f"✅ You have claimed {chosen_click}. Your choice is locked forever.")
+                        st.balloons()
+                        st.rerun()
 
 # ==========================================
 # TAB 9: HOST CONTROL CENTRE
@@ -1220,6 +1246,29 @@ elif nav == "👑 Host Control (Neilio)":
             key="host_toggle_hall_of_destiny"
         )
         save_state(state)
+
+        # --- HOST DESTINY PIN MANAGEMENT DESK ---
+        st.markdown("---")
+        st.subheader("🗝️ Host Hall of Destiny PIN Manager")
+        st.caption("Inspect or reset individual 3-digit Hall PINs for active players.")
+        
+        destiny_pin_rows = []
+        for p_name, p_dat in state["players"].items():
+            destiny_pin_rows.append({
+                "Player": p_name,
+                "Status": p_dat.get("status"),
+                "Hall PIN": p_dat.get("destiny_pin", "123")
+            })
+        
+        edited_dpins_df = st.data_editor(pd.DataFrame(destiny_pin_rows), use_container_width=True, hide_index=True, key="host_dpins_editor")
+        if st.button("💾 Save Hall PIN Updates", key="host_save_dpins_btn"):
+            for _, row in edited_dpins_df.iterrows():
+                p_n = row["Player"]
+                if p_n in state["players"]:
+                    state["players"][p_n]["destiny_pin"] = str(row["Hall PIN"])
+            save_state(state)
+            st.success("✅ Hall of Destiny PINs successfully updated!")
+            st.rerun()
 
         # --- HOST ITEM TRANSFER / REALLOCATION DESK ---
         st.markdown("---")
