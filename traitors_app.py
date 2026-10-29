@@ -1114,7 +1114,7 @@ elif nav == "💀 Public Execution Room":
                     st.info("No save votes cast yet.")
 
 # ==========================================
-# TAB 6: THE HALL OF SECRET DESTINY (WITH THREE-COG PUZZLE)
+# TAB 6: THE HALL OF SECRET DESTINY (WITH WISH & WATCH ANIMATION)
 # ==========================================
 elif nav == "🔮 The Hall of Secret Destiny":
     st.title("🔮 The Hall of Secret Destiny")
@@ -1132,11 +1132,9 @@ elif nav == "🔮 The Hall of Secret Destiny":
         p_data = state["players"][destiny_player]
         p_status = str(p_data.get("status", "Alive"))
 
-        # STRICT RULE CHECK: Banished, murdered, or executed players cannot access the castle at this point
         if p_status not in ["Alive", "Undead"]:
             st.error("💀 **DENIED ACCESS:** The heavy iron portcullis remains bolted shut. Banished, murdered, and executed souls cannot cross the veil into the Hall of Destiny.")
         else:
-            # Check if this active player has unlocked their Hall session using the Three-Cog puzzle
             if st.session_state.get("destiny_unlocked_player") != destiny_player:
                 st.markdown("### ⚙️ The Three Cogs of Destiny")
                 st.markdown(
@@ -1144,14 +1142,10 @@ elif nav == "🔮 The Hall of Secret Destiny":
                     "Turn each gear to match the digits of your secret passage code.\"*"
                 )
 
-                # Fetch bespoke or default player riddle
                 player_riddle = INDIVIDUAL_RIDDLES.get(destiny_player, "Align the three brass cogs to match your secret 3-digit destination PIN.")
                 st.markdown(f"**🧩 Riddle for {destiny_player}:**\n> *\"{player_riddle}\"*")
 
                 correct_pin = str(p_data.get("destiny_pin", "123"))
-                c1_target = int(correct_pin[0])
-                c2_target = int(correct_pin[1])
-                c3_target = int(correct_pin[2])
 
                 with st.form("cog_puzzle_form"):
                     st.markdown("#### Spin the Cogs (0 through 9):")
@@ -1186,10 +1180,16 @@ elif nav == "🔮 The Hall of Secret Destiny":
                 already_chosen_symbol = destiny_choices.get(destiny_player)
 
                 if already_chosen_symbol:
+                    # Determine player role for reminder if already chosen
+                    p_role = str(p_data.get("role", "Faithful"))
+                    role_announcement = "🗡️ TRAITOR" if "Traitor" in p_role else "🕯️ FAITHFUL"
+                    
                     st.markdown(f"""
                     <div class="player-card" style="background: #ebdccb; border: 2px solid #5c1d1d; padding: 25px;">
                         <h3>🔒 Your Destiny is Sealed</h3>
-                        <p>You have already chosen your sealed vessel bearing the symbol: <b>{already_chosen_symbol}</b>.</p>
+                        <p>You have chosen your sealed vessel bearing the symbol: <b>{already_chosen_symbol}</b>.</p>
+                        <p>Your true alignment is <b>{role_announcement}</b>.</p>
+                        <p style="color: #7a756b; font-size: 11px;">(The message has slowly faded into the castle mists)</p>
                         <p><i>The mists whisper an absolute command: <b>Do not speak of your symbol to anyone.</b> Return to the Great Hall.</i></p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1211,19 +1211,29 @@ elif nav == "🔮 The Hall of Secret Destiny":
                         destiny_choices[destiny_player] = chosen_click
                         save_state(state)
 
-                        with st.spinner("🔮 The ancient machinery grinds into motion... Unsealing fate..."):
+                        # Wish & Watch Suspenseful Sequence with lengthened animation
+                        with st.spinner("✨ Make a wish and watch closely... The mists swirl around your vessel..."):
                             placeholder = st.empty()
-                            for _ in range(6):
+                            # Lengthened animation loop (12 iterations for heightened suspense)
+                            for _ in range(12):
                                 placeholder.markdown("<h2 style='text-align: center; color: #b30000;'>FLIP...</h2>", unsafe_allow_html=True)
-                                time.sleep(0.2)
+                                time.sleep(0.3)
                                 placeholder.markdown("<h2 style='text-align: center; color: #c5a059;'>STICK...</h2>", unsafe_allow_html=True)
-                                time.sleep(0.2)
+                                time.sleep(0.3)
                             
+                            # Final locked result
                             placeholder.markdown("<h1 style='text-align: center; color: #5c1d1d;'>✨ STICK ✨</h1>", unsafe_allow_html=True)
-                            time.sleep(1)
+                            time.sleep(1.5)
 
-                        st.success(f"✅ You have claimed {chosen_click}. Your choice is locked forever.")
+                        # Role Announcement
+                        p_role = str(p_data.get("role", "Faithful"))
+                        role_announcement = "🗡️ TRAITOR" if "Traitor" in p_role else "🕯️ FAITHFUL"
+                        
                         st.balloons()
+                        st.success(f"✅ You have claimed {chosen_click}.")
+                        st.markdown(f"### 📢 Your decree is sealed: You are a **{role_announcement}**.")
+                        st.caption("📜 *The glowing words slowly dissolve and fade away into the shadows of the chamber...*")
+                        time.sleep(2)
                         st.rerun()
 
 # ==========================================
@@ -1276,7 +1286,7 @@ elif nav == "👑 Host Control (Neilio)":
                 st.success(f"✅ Portal session overridden. You are now testing as **{test_player_target}**! Head to the Player Portal tab.")
                 st.rerun()
 
-        # --- HALL OF DESTINY SIDEBAR TOGGLE ---
+        # --- HALL OF DESTINY SIDEBAR TOGGLE & RESET ---
         st.markdown("---")
         st.subheader("🔮 Hall of Secret Destiny Controls")
         state["hall_of_destiny_enabled"] = st.toggle(
@@ -1285,6 +1295,14 @@ elif nav == "👑 Host Control (Neilio)":
             key="host_toggle_hall_of_destiny"
         )
         save_state(state)
+
+        if st.button("🔄 Reset Hall of Destiny For All Players (Testing Mode)", key="host_reset_hall_btn"):
+            state["hall_of_destiny_choices"] = {}
+            if "destiny_unlocked_player" in st.session_state:
+                del st.session_state["destiny_unlocked_player"]
+            save_state(state)
+            st.success("✅ Hall of Destiny choices and unlocks have been completely reset for all players!")
+            st.rerun()
 
         # --- HOST DESTINY PIN MANAGEMENT DESK ---
         st.markdown("---")
